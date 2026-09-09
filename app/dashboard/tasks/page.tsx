@@ -12,6 +12,9 @@ import {
   DELETE_TASK_MUTATION,
   ASSIGN_TASK_MUTATION,
   UNASSIGN_TASK_MUTATION,
+  CREATE_TASK_COMMENT_MUTATION,
+  ADD_TASK_DEPENDENCY_MUTATION,
+  REMOVE_TASK_DEPENDENCY_MUTATION,
   CREATE_PROJECT_MUTATION,
   MY_ORGANIZATIONS_QUERY,
   ORGANIZATION_MEMBERS_QUERY,
@@ -41,6 +44,11 @@ import {
   Check,
   Building2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Link2,
+  Send,
+  CornerDownRight,
 } from 'lucide-react';
 
 export type TaskStatusType = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE';
@@ -53,6 +61,252 @@ const COLUMNS: { id: TaskStatusType; label: string; color: string; badge: string
   { id: 'IN_REVIEW', label: 'In Review', color: 'border-purple-950 bg-purple-950/10', badge: 'bg-purple-950/80 text-purple-300 border border-purple-800/80' },
   { id: 'DONE', label: 'Done', color: 'border-emerald-950 bg-emerald-950/10', badge: 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/80' },
 ];
+
+interface CalendarDatePickerProps {
+  value: string; // YYYY-MM-DD
+  onChange: (val: string) => void;
+  placeholder?: string;
+}
+
+function CalendarDatePicker({ value, onChange, placeholder = 'Select due date...' }: CalendarDatePickerProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [viewDate, setViewDate] = useState(() => {
+    return value ? new Date(value) : new Date();
+  });
+
+  useEffect(() => {
+    if (value) {
+      const d = new Date(value);
+      if (!isNaN(d.getTime())) setViewDate(d);
+    }
+  }, [value]);
+
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const prevMonthDays = new Date(year, month, 0).getDate();
+
+  const handlePrevMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setViewDate(new Date(year, month - 1, 1));
+  };
+
+  const handleNextMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setViewDate(new Date(year, month + 1, 1));
+  };
+
+  const formatDateStr = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const selectDate = (d: Date) => {
+    onChange(formatDateStr(d));
+    setIsOpen(false);
+  };
+
+  const today = new Date();
+  const todayStr = formatDateStr(today);
+
+  const presets = [
+    { label: 'Today', date: today },
+    { label: 'Tomorrow', date: new Date(Date.now() + 86400000) },
+    {
+      label: 'Friday',
+      date: (() => {
+        const d = new Date();
+        const diff = (5 - d.getDay() + 7) % 7 || 7;
+        d.setDate(d.getDate() + diff);
+        return d;
+      })(),
+    },
+    {
+      label: 'Next Wk',
+      date: (() => {
+        const d = new Date();
+        const diff = (1 - d.getDay() + 7) % 7 || 7;
+        d.setDate(d.getDate() + diff);
+        return d;
+      })(),
+    },
+  ];
+
+  const formattedDisplay = value
+    ? (() => {
+        try {
+          const parts = value.split('-');
+          const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+          return d.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+          });
+        } catch {
+          return value;
+        }
+      })()
+    : null;
+
+  return (
+    <div className="relative">
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center justify-between px-3 py-2 bg-slate-950 border rounded-lg text-xs cursor-pointer transition-colors ${
+          isOpen ? 'border-indigo-500 ring-1 ring-indigo-500/30' : 'border-slate-800 hover:border-slate-700'
+        }`}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <CalendarIcon className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+          <span className={`truncate font-mono ${formattedDisplay ? 'text-slate-100 font-semibold' : 'text-slate-500'}`}>
+            {formattedDisplay || placeholder}
+          </span>
+        </div>
+        {value && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange('');
+            }}
+            title="Clear date"
+            className="p-0.5 text-slate-500 hover:text-rose-400 rounded transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute left-0 top-full mt-1.5 z-50 w-72 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-3.5 space-y-3 font-sans animate-in fade-in zoom-in-95 duration-150">
+            {/* Quick Presets */}
+            <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-slate-800/80">
+              {presets.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    selectDate(p.date);
+                  }}
+                  className="px-2 py-1 bg-slate-800 hover:bg-indigo-600/30 hover:text-indigo-300 text-slate-400 rounded text-[10px] font-mono whitespace-nowrap cursor-pointer transition-colors"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Month & Year Navigator */}
+            <div className="flex items-center justify-between px-1">
+              <button
+                type="button"
+                onClick={handlePrevMonth}
+                className="p-1 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded cursor-pointer transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-xs font-bold text-slate-200 font-mono">
+                {monthNames[month]} {year}
+              </span>
+              <button
+                type="button"
+                onClick={handleNextMonth}
+                className="p-1 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded cursor-pointer transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Day of Week Headers */}
+            <div className="grid grid-cols-7 text-center font-mono text-[10px] text-slate-500 font-semibold">
+              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
+                <span key={d}>{d}</span>
+              ))}
+            </div>
+
+            {/* Calendar Days Grid */}
+            <div className="grid grid-cols-7 gap-1 text-center font-mono text-xs">
+              {/* Previous Month Padding */}
+              {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                <span key={`prev-${i}`} className="p-1 text-slate-600 text-[11px] opacity-40">
+                  {prevMonthDays - firstDayOfWeek + i + 1}
+                </span>
+              ))}
+
+              {/* Days in Month */}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const dayNum = i + 1;
+                const d = new Date(year, month, dayNum);
+                const dStr = formatDateStr(d);
+                const isSelected = value === dStr;
+                const isToday = todayStr === dStr;
+
+                return (
+                  <button
+                    key={dayNum}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      selectDate(d);
+                    }}
+                    className={`h-7 w-7 mx-auto rounded-lg flex items-center justify-center text-[11px] transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white font-bold shadow-sm'
+                        : isToday
+                        ? 'bg-slate-800 text-indigo-300 font-bold border border-indigo-500/50'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    {dayNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px]">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChange('');
+                  setIsOpen(false);
+                }}
+                className="text-slate-500 hover:text-rose-400 cursor-pointer font-mono"
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  selectDate(today);
+                }}
+                className="text-indigo-400 hover:text-indigo-300 cursor-pointer font-semibold font-mono"
+              >
+                Today
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function TasksPage() {
   const queryClient = useQueryClient();
@@ -82,9 +336,15 @@ export default function TasksPage() {
   const [newPriority, setNewPriority] = useState<TaskPriorityType>('MEDIUM');
   const [newDueDate, setNewDueDate] = useState('');
   const [selectedAssigneePubIds, setSelectedAssigneePubIds] = useState<string[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [newDependencyTaskId, setNewDependencyTaskId] = useState('');
+  const [newDependencyType, setNewDependencyType] = useState<'BLOCKS' | 'RELATES_TO'>('BLOCKS');
 
   // Drawer Assign Member state
   const [assignSelectPubId, setAssignSelectPubId] = useState<string>('');
+  const [drawerCommentText, setDrawerCommentText] = useState('');
+  const [drawerDepTaskId, setDrawerDepTaskId] = useState('');
+  const [drawerDepType, setDrawerDepType] = useState<'BLOCKS' | 'RELATES_TO'>('BLOCKS');
 
   // Quick Create Project Modal state (if workspace has 0 projects)
   const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
@@ -179,18 +439,23 @@ export default function TasksPage() {
     enabled: !!effectiveOrgPubId && !!accessToken,
   });
 
-  // Keep selectedTask assignees and status in sync when tasks query refetches
+  // Keep selectedTask assignees, comments, dependencies in sync when tasks query refetches
   useEffect(() => {
     if (selectedTask) {
       const latest = tasks.find((t: any) => t.pubId === selectedTask.pubId);
-      if (latest && JSON.stringify(latest.assignees) !== JSON.stringify(selectedTask.assignees)) {
+      if (latest) {
         setSelectedTask((prev: any) => ({
           ...prev,
           assignees: latest.assignees,
+          comments: latest.comments,
+          dependencies: latest.dependencies,
+          status: latest.status,
+          priority: latest.priority,
+          position: latest.position,
         }));
       }
     }
-  }, [tasks, selectedTask]);
+  }, [tasks]);
 
   // Sync selected task edit state
   useEffect(() => {
@@ -241,11 +506,12 @@ export default function TasksPage() {
     },
   });
 
-  // 5. Mutation: Create Task
+  // 5. Mutation: Create Task (with optional initial comment & dependency)
   const createTaskMutation = useMutation({
     mutationFn: async () => {
       if (!selectedProjectPubId) throw new Error('No project selected.');
-      return graphqlRequest<{ createTask: any }>(CREATE_TASK_MUTATION, {
+      // 1. Create base task
+      const res = await graphqlRequest<{ createTask: any }>(CREATE_TASK_MUTATION, {
         input: {
           projectPubId: selectedProjectPubId,
           title: newTitle.trim(),
@@ -257,11 +523,45 @@ export default function TasksPage() {
           assigneeUserPubIds: selectedAssigneePubIds.length > 0 ? selectedAssigneePubIds : undefined,
         },
       });
+
+      const created = res?.createTask;
+      if (created?.pubId) {
+        // 2. Optional initial comment
+        if (newComment.trim()) {
+          try {
+            await graphqlRequest(CREATE_TASK_COMMENT_MUTATION, {
+              input: {
+                taskPubId: created.pubId,
+                content: newComment.trim(),
+              },
+            });
+          } catch (cErr) {
+            console.warn('Initial comment error:', cErr);
+          }
+        }
+
+        // 3. Optional initial dependency
+        if (newDependencyTaskId) {
+          try {
+            await graphqlRequest(ADD_TASK_DEPENDENCY_MUTATION, {
+              input: {
+                taskPubId: created.pubId,
+                dependsOnTaskPubId: newDependencyTaskId,
+                type: newDependencyType,
+              },
+            });
+          } catch (dErr) {
+            console.warn('Initial dependency error:', dErr);
+          }
+        }
+      }
+
+      return res;
     },
     onSuccess: (data) => {
       setStatusMsg({
         type: 'success',
-        text: `Task "${data?.createTask?.title || 'Task'}" created.`,
+        text: `Task "${data?.createTask?.title || 'Task'}" created successfully.`,
       });
       setShowCreateModal(false);
       setNewTitle('');
@@ -269,6 +569,9 @@ export default function TasksPage() {
       setNewDueDate('');
       setNewPriority('MEDIUM');
       setSelectedAssigneePubIds([]);
+      setNewComment('');
+      setNewDependencyTaskId('');
+      setNewDependencyType('BLOCKS');
       queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
       queryClient.invalidateQueries({ queryKey: ['organizationProjects', effectiveOrgPubId] });
     },
@@ -277,6 +580,70 @@ export default function TasksPage() {
         type: 'error',
         text: err?.message || 'Failed to create task.',
       });
+    },
+  });
+
+  // Drawer: Post Comment Mutation
+  const postDrawerCommentMutation = useMutation({
+    mutationFn: async ({ taskPubId, content }: { taskPubId: string; content: string }) => {
+      return graphqlRequest<{ createTaskComment: any }>(CREATE_TASK_COMMENT_MUTATION, {
+        input: { taskPubId, content },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+      setDrawerCommentText('');
+      setStatusMsg({ type: 'success', text: 'Comment posted.' });
+    },
+    onError: (err: any) => {
+      setStatusMsg({ type: 'error', text: err?.message || 'Failed to post comment.' });
+    },
+  });
+
+  // Drawer: Add Dependency Mutation
+  const addDrawerDependencyMutation = useMutation({
+    mutationFn: async ({
+      taskPubId,
+      dependsOnTaskPubId,
+      type,
+    }: {
+      taskPubId: string;
+      dependsOnTaskPubId: string;
+      type: 'BLOCKS' | 'RELATES_TO';
+    }) => {
+      return graphqlRequest<{ addTaskDependency: any }>(ADD_TASK_DEPENDENCY_MUTATION, {
+        input: { taskPubId, dependsOnTaskPubId, type },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+      setDrawerDepTaskId('');
+      setStatusMsg({ type: 'success', text: 'Dependency added.' });
+    },
+    onError: (err: any) => {
+      setStatusMsg({ type: 'error', text: err?.message || 'Failed to add dependency.' });
+    },
+  });
+
+  // Drawer: Remove Dependency Mutation
+  const removeDrawerDependencyMutation = useMutation({
+    mutationFn: async ({
+      taskPubId,
+      dependsOnTaskPubId,
+    }: {
+      taskPubId: string;
+      dependsOnTaskPubId: string;
+    }) => {
+      return graphqlRequest<{ removeTaskDependency: any }>(REMOVE_TASK_DEPENDENCY_MUTATION, {
+        input: { taskPubId, dependsOnTaskPubId },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+      setStatusMsg({ type: 'success', text: 'Dependency removed.' });
+    },
+    onError: (err: any) => {
+      setStatusMsg({ type: 'error', text: err?.message || 'Failed to remove dependency.' });
     },
   });
 
@@ -370,12 +737,7 @@ export default function TasksPage() {
         type: 'success',
         text: `Task "${data?.updateTask?.title || editTitle}" updated.`,
       });
-      if (data?.updateTask) {
-        setSelectedTask((prev: any) => ({
-          ...prev,
-          ...data.updateTask,
-        }));
-      }
+      setSelectedTask(null);
       queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
     },
     onError: (err: any) => {
@@ -839,16 +1201,31 @@ export default function TasksPage() {
                               )}
                             </div>
 
-                            {task.dueDate ? (
-                              <div className="flex items-center gap-1 text-slate-500 ml-auto">
-                                <Clock className="w-3 h-3" />
-                                <span>{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 text-slate-600 text-[9px] ml-auto">
-                                <span>{task.creator?.fullName?.split(' ')[0] || 'Member'}</span>
-                              </div>
-                            )}
+                            {/* Indicators: Comments, Dependencies, Due Date */}
+                            <div className="flex items-center gap-2 text-[10px] font-mono ml-auto">
+                              {task.dependencies && task.dependencies.length > 0 && (
+                                <span className="flex items-center gap-0.5 text-amber-400/90" title={`${task.dependencies.length} dependencies`}>
+                                  <Link2 className="w-3 h-3" />
+                                  <span>{task.dependencies.length}</span>
+                                </span>
+                              )}
+                              {task.comments && task.comments.length > 0 && (
+                                <span className="flex items-center gap-0.5 text-slate-400" title={`${task.comments.length} comments`}>
+                                  <MessageSquare className="w-3 h-3" />
+                                  <span>{task.comments.length}</span>
+                                </span>
+                              )}
+                              {task.dueDate ? (
+                                <div className="flex items-center gap-1 text-slate-500">
+                                  <Clock className="w-3 h-3" />
+                                  <span>{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                                </div>
+                              ) : (
+                                <div className="text-slate-600 text-[9px]">
+                                  <span>{task.creator?.fullName?.split(' ')[0] || 'Member'}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -1051,13 +1428,11 @@ export default function TasksPage() {
 
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">Due Date</label>
-                    <input
-                      type="date"
+                    <CalendarDatePicker
                       value={editDueDate}
-                      onChange={(e) => setEditDueDate(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono cursor-pointer"
-                    >
-                    </input>
+                      onChange={setEditDueDate}
+                      placeholder="Set due date..."
+                    />
                   </div>
                 </div>
 
@@ -1166,6 +1541,213 @@ export default function TasksPage() {
                     </div>
                   );
                 })()}
+
+                {/* Task Dependencies Section */}
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-medium text-slate-300 flex items-center gap-1.5">
+                      <Link2 className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Task Dependencies</span>
+                    </label>
+                    <span className="text-[10px] font-mono text-slate-500">
+                      {(selectedTask.dependencies || []).length} linked
+                    </span>
+                  </div>
+
+                  {/* List of dependencies */}
+                  <div className="space-y-1.5">
+                    {(selectedTask.dependencies || []).length === 0 ? (
+                      <p className="text-[11px] text-slate-500 italic px-2.5 py-1.5 bg-slate-950/60 rounded-lg border border-slate-800">
+                        No dependencies. This task can be worked on independently.
+                      </p>
+                    ) : (
+                      (selectedTask.dependencies || []).map((dep: any) => {
+                        const targetTask = tasks.find((t: any) => t.pubId === dep.dependsOnTaskPubId);
+                        const targetKey = targetTask?.project?.key
+                          ? `${targetTask.project.key}-${targetTask.pubId.slice(-4).toUpperCase()}`
+                          : dep.dependsOnTaskPubId?.slice(0, 8);
+
+                        return (
+                          <div
+                            key={dep.pubId || dep.dependsOnTaskPubId}
+                            className="flex items-center justify-between p-2 bg-slate-950 border border-slate-800 rounded-lg text-xs"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-800 font-bold">
+                                {dep.type || 'BLOCKS'}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-slate-200 text-xs truncate">
+                                  [{targetKey}] {targetTask?.title || 'Linked Task'}
+                                </p>
+                                <p className="text-[10px] text-slate-500 font-mono truncate">
+                                  Status: {targetTask?.status || 'Active'}
+                                </p>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              title="Remove Dependency"
+                              disabled={removeDrawerDependencyMutation.isPending}
+                              onClick={() => {
+                                removeDrawerDependencyMutation.mutate({
+                                  taskPubId: selectedTask.pubId,
+                                  dependsOnTaskPubId: dep.dependsOnTaskPubId,
+                                });
+                              }}
+                              className="p-1 hover:bg-rose-950 hover:text-rose-400 text-slate-500 rounded cursor-pointer transition-colors"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Add Dependency Controls */}
+                  {(() => {
+                    const existingDepIds = (selectedTask.dependencies || []).map((d: any) => d.dependsOnTaskPubId);
+                    const availableTasks = tasks.filter(
+                      (t: any) => t.pubId !== selectedTask.pubId && !existingDepIds.includes(t.pubId)
+                    );
+
+                    if (availableTasks.length === 0) return null;
+
+                    return (
+                      <div className="flex items-center gap-2 pt-1">
+                        <select
+                          value={drawerDepTaskId}
+                          onChange={(e) => setDrawerDepTaskId(e.target.value)}
+                          className="flex-1 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-sans cursor-pointer"
+                        >
+                          <option value="">Select task to depend on...</option>
+                          {availableTasks.map((t: any) => {
+                            const taskKey = t.project?.key
+                              ? `${t.project.key}-${t.pubId.slice(-4).toUpperCase()}`
+                              : t.pubId.slice(0, 8);
+                            return (
+                              <option key={t.pubId} value={t.pubId}>
+                                [{taskKey}] {t.title}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <select
+                          value={drawerDepType}
+                          onChange={(e) => setDrawerDepType(e.target.value as 'BLOCKS' | 'RELATES_TO')}
+                          className="w-24 px-2 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500 cursor-pointer"
+                        >
+                          <option value="BLOCKS">BLOCKS</option>
+                          <option value="RELATES_TO">RELATES</option>
+                        </select>
+                        <button
+                          type="button"
+                          disabled={!drawerDepTaskId || addDrawerDependencyMutation.isPending}
+                          onClick={() => {
+                            if (drawerDepTaskId) {
+                              addDrawerDependencyMutation.mutate({
+                                taskPubId: selectedTask.pubId,
+                                dependsOnTaskPubId: drawerDepTaskId,
+                                type: drawerDepType,
+                              });
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-amber-600/80 hover:bg-amber-600 disabled:opacity-50 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 shadow-sm whitespace-nowrap"
+                        >
+                          {addDrawerDependencyMutation.isPending ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Link2 className="w-3 h-3" />
+                          )}
+                          <span>Link</span>
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Task Comments Section */}
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-medium text-slate-300 flex items-center gap-1.5">
+                      <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Comments & Activity</span>
+                    </label>
+                    <span className="text-[10px] font-mono text-slate-500">
+                      {(selectedTask.comments || []).length} comments
+                    </span>
+                  </div>
+
+                  {/* List of comments */}
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {(selectedTask.comments || []).length === 0 ? (
+                      <p className="text-[11px] text-slate-500 italic px-2.5 py-1.5 bg-slate-950/60 rounded-lg border border-slate-800">
+                        No comments yet. Start the discussion below.
+                      </p>
+                    ) : (
+                      (selectedTask.comments || []).map((cm: any) => (
+                        <div
+                          key={cm.pubId}
+                          className="p-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs space-y-1"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-200">
+                              {cm.author?.fullName || cm.author?.email?.split('@')[0] || 'Member'}
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-500">
+                              {cm.createdAt ? new Date(cm.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                            </span>
+                          </div>
+                          <p className="text-slate-300 leading-relaxed font-sans text-[11px]">
+                            {cm.content}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* New Comment Input */}
+                  <div className="flex gap-2 pt-1">
+                    <input
+                      type="text"
+                      value={drawerCommentText}
+                      onChange={(e) => setDrawerCommentText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && drawerCommentText.trim() && !postDrawerCommentMutation.isPending) {
+                          e.preventDefault();
+                          postDrawerCommentMutation.mutate({
+                            taskPubId: selectedTask.pubId,
+                            content: drawerCommentText.trim(),
+                          });
+                        }
+                      }}
+                      placeholder="Write a comment..."
+                      className="flex-1 px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans"
+                    />
+                    <button
+                      type="button"
+                      disabled={!drawerCommentText.trim() || postDrawerCommentMutation.isPending}
+                      onClick={() => {
+                        if (drawerCommentText.trim()) {
+                          postDrawerCommentMutation.mutate({
+                            taskPubId: selectedTask.pubId,
+                            content: drawerCommentText.trim(),
+                          });
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 shadow-sm whitespace-nowrap"
+                    >
+                      {postDrawerCommentMutation.isPending ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Send className="w-3 h-3" />
+                      )}
+                      <span>Comment</span>
+                    </button>
+                  </div>
+                </div>
 
                 {/* Metadata */}
                 <div className="p-3 bg-slate-950/60 rounded-lg border border-slate-800 text-[11px] font-mono text-slate-400 space-y-1">
@@ -1321,12 +1903,11 @@ export default function TasksPage() {
               </div>
 
               <div>
-                <label className="block font-medium text-slate-300 mb-1">Due Date</label>
-                <input
-                  type="date"
+                <label className="block font-medium text-slate-300 mb-1">Due Date (Optional)</label>
+                <CalendarDatePicker
                   value={newDueDate}
-                  onChange={(e) => setNewDueDate(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono cursor-pointer"
+                  onChange={setNewDueDate}
+                  placeholder="Select due date from calendar..."
                 />
               </div>
 
@@ -1406,6 +1987,66 @@ export default function TasksPage() {
                     })
                   )}
                 </div>
+              </div>
+
+              {/* Task Dependency (Optional) */}
+              <div className="space-y-1.5">
+                <label className="block font-medium text-slate-300 flex items-center gap-1.5">
+                  <Link2 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Task Dependency (Optional)</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="sm:col-span-2">
+                    <select
+                      value={newDependencyTaskId}
+                      onChange={(e) => setNewDependencyTaskId(e.target.value)}
+                      className="w-full px-2.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-sans cursor-pointer"
+                    >
+                      <option value="">No Dependency (Independent)</option>
+                      {tasks.map((t: any) => {
+                        const taskKey = t.project?.key
+                          ? `${t.project.key}-${t.pubId.slice(-4).toUpperCase()}`
+                          : t.pubId.slice(0, 8);
+                        return (
+                          <option key={t.pubId} value={t.pubId}>
+                            [{taskKey}] {t.title}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                  <div>
+                    <select
+                      value={newDependencyType}
+                      disabled={!newDependencyTaskId}
+                      onChange={(e) => setNewDependencyType(e.target.value as 'BLOCKS' | 'RELATES_TO')}
+                      className="w-full px-2.5 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 disabled:opacity-40 focus:outline-none focus:border-indigo-500 font-mono cursor-pointer"
+                    >
+                      <option value="BLOCKS">BLOCKS</option>
+                      <option value="RELATES_TO">RELATES</option>
+                    </select>
+                  </div>
+                </div>
+                {newDependencyTaskId && (
+                  <p className="text-[10px] text-amber-300/80 font-mono">
+                    This task will be marked as dependent with type: {newDependencyType}.
+                  </p>
+                )}
+              </div>
+
+              {/* Initial Task Comment (Optional) */}
+              <div>
+                <label className="block font-medium text-slate-300 mb-1 flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Initial Comment / Kickoff Note (Optional)</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Add kickoff instructions, context, or notes for the team..."
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans"
+                />
               </div>
 
               <div className="flex gap-2.5 pt-3 border-t border-slate-800">

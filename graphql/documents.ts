@@ -704,6 +704,17 @@ export const PROJECT_TASKS_QUERY = `
       comments {
         pubId
         content
+        createdAt
+        author {
+          pubId
+          fullName
+          email
+        }
+      }
+      dependencies {
+        pubId
+        dependsOnTaskPubId
+        type
       }
       createdAt
       updatedAt
@@ -743,6 +754,21 @@ export const TASK_QUERY = `
         pubId
         name
         color
+      }
+      comments {
+        pubId
+        content
+        createdAt
+        author {
+          pubId
+          fullName
+          email
+        }
+      }
+      dependencies {
+        pubId
+        dependsOnTaskPubId
+        type
       }
       createdAt
       updatedAt
@@ -841,6 +867,43 @@ export const ASSIGN_TASK_MUTATION = `
 export const UNASSIGN_TASK_MUTATION = `
   mutation UnassignTask($input: UnassignTaskInput!) {
     unassignTask(input: $input) {
+      success
+      message
+    }
+  }
+`;
+
+export const CREATE_TASK_COMMENT_MUTATION = `
+  mutation CreateTaskComment($input: CreateTaskCommentInput!) {
+    createTaskComment(input: $input) {
+      pubId
+      taskPubId
+      content
+      createdAt
+      author {
+        pubId
+        fullName
+        email
+      }
+    }
+  }
+`;
+
+export const ADD_TASK_DEPENDENCY_MUTATION = `
+  mutation AddTaskDependency($input: AddTaskDependencyInput!) {
+    addTaskDependency(input: $input) {
+      pubId
+      taskPubId
+      dependsOnTaskPubId
+      type
+      createdAt
+    }
+  }
+`;
+
+export const REMOVE_TASK_DEPENDENCY_MUTATION = `
+  mutation RemoveTaskDependency($input: RemoveTaskDependencyInput!) {
+    removeTaskDependency(input: $input) {
       success
       message
     }
