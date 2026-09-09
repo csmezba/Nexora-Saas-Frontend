@@ -321,6 +321,22 @@ export const TEAM_MEMBERS_QUERY = `
   }
 `;
 
+export const TEAM_PROJECTS_QUERY = `
+  query TeamProjects($teamPubId: String!) {
+    teamProjects(teamPubId: $teamPubId) {
+      pubId
+      name
+      key
+      description
+      status
+      startDate
+      dueDate
+      memberCount
+      createdAt
+    }
+  }
+`;
+
 export const CREATE_TEAM_MUTATION = `
   mutation CreateTeam($input: CreateTeamInput!) {
     createTeam(input: $input) {
