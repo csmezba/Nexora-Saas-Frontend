@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useAuthStore } from '@/store/useAuthStore';
 import {
   FolderKanban,
   Plus,
@@ -79,8 +79,8 @@ const INITIAL_PROJECTS: ProjectItem[] = [
 ];
 
 export default function ProjectsPage() {
-  const params = useParams();
-  const orgSlug = (params?.organizationSlug as string) || 'acme';
+  const { selectedOrgSlug } = useAuthStore();
+  const orgSlug = selectedOrgSlug || 'acme';
 
   const [projects, setProjects] = useState<ProjectItem[]>(INITIAL_PROJECTS);
   const [searchQuery, setSearchQuery] = useState('');

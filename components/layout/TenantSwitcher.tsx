@@ -1,26 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { graphqlRequest } from '@/lib/graphql-client';
-import { MY_ORGANIZATIONS_QUERY, CREATE_ORGANIZATION_MUTATION } from '@/graphql/documents';
+import { MY_ORGANIZATIONS_QUERY } from '@/graphql/documents';
 import { useAuthStore } from '@/store/useAuthStore';
+import CreateOrganizationModal from '@/components/organization/CreateOrganizationModal';
 import { Building2, ChevronDown, Plus, Check, Layers } from 'lucide-react';
 
 export default function TenantSwitcher() {
   const router = useRouter();
-  const params = useParams();
   const queryClient = useQueryClient();
 
-  const currentSlug = (params?.organizationSlug as string) || 'acme';
-  const { accessToken, setSelectedOrg } = useAuthStore();
+  const { accessToken, selectedOrgPubId, selectedOrgSlug, setSelectedOrg } = useAuthStore();
 
   const [open, setOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  const [newOrgName, setNewOrgName] = useState('');
-  const [newOrgSlug, setNewOrgSlug] = useState('');
 
   // Fetch real user's organizations from GraphQL backend
   const { data: myOrgs = [] } = useQuery({
@@ -33,36 +29,26 @@ export default function TenantSwitcher() {
     enabled: !!accessToken,
   });
 
-  const activeOrg = myOrgs.find((o) => o.slug === currentSlug) || {
-    name: currentSlug === 'acme' ? 'Acme Corporation' : currentSlug,
-    slug: currentSlug,
+  // Auto-select first organization if none currently selected
+  useEffect(() => {
+    if (myOrgs.length > 0 && (!selectedOrgPubId || !myOrgs.some((o: any) => o.pubId === selectedOrgPubId))) {
+      setSelectedOrg(myOrgs[0].pubId, myOrgs[0].slug);
+    }
+  }, [myOrgs, selectedOrgPubId, setSelectedOrg]);
+
+  const activeOrg = myOrgs.find((o: any) =>
+    (selectedOrgPubId && o.pubId === selectedOrgPubId) ||
+    (selectedOrgSlug && o.slug === selectedOrgSlug)
+  ) || myOrgs[0] || {
+    name: 'Acme Corporation',
+    slug: 'acme',
     currentUserRole: 'OWNER',
   };
-
-  const createOrgMutation = useMutation({
-    mutationFn: async () => {
-      return graphqlRequest<{ createOrganization: any }>(CREATE_ORGANIZATION_MUTATION, {
-        input: {
-          name: newOrgName,
-          slug: newOrgSlug,
-        },
-      });
-    },
-    onSuccess: (data) => {
-      const created = data.createOrganization;
-      setSelectedOrg(created.pubId, created.slug);
-      queryClient.invalidateQueries();
-      setShowCreateModal(false);
-      setNewOrgName('');
-      setNewOrgSlug('');
-      router.push(`/dashboard`);
-    },
-  });
 
   const handleSelectOrg = (org: any) => {
     setSelectedOrg(org.pubId, org.slug);
     setOpen(false);
-    router.push(`/dashboard`);
+    queryClient.invalidateQueries();
   };
 
   return (
@@ -93,7 +79,7 @@ export default function TenantSwitcher() {
           <div className="space-y-0.5 max-h-48 overflow-y-auto">
             {myOrgs.length > 0 ? (
               myOrgs.map((org: any) => {
-                const isSelected = org.slug === currentSlug;
+                const isSelected = org.pubId === activeOrg.pubId || org.slug === activeOrg.slug;
                 return (
                   <button
                     key={org.pubId || org.slug}
@@ -139,69 +125,11 @@ export default function TenantSwitcher() {
         </div>
       )}
 
-      {/* Create Org Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-5 text-slate-100 font-sans">
-            <h3 className="text-base font-bold text-slate-100 mb-1 flex items-center gap-2">
-              <Layers className="w-4 h-4 text-indigo-400" />
-              Create New Organization
-            </h3>
-            <p className="text-xs text-slate-400 mb-4">
-              Add a new tenant workspace to your Nexora account.
-            </p>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                createOrgMutation.mutate();
-              }}
-              className="space-y-3.5"
-            >
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Organization Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={newOrgName}
-                  onChange={(e) => setNewOrgName(e.target.value)}
-                  placeholder="Nexora Labs"
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Workspace URL Slug *</label>
-                <input
-                  type="text"
-                  required
-                  value={newOrgSlug}
-                  onChange={(e) => setNewOrgSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-                  placeholder="nexora-labs"
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-slate-100 focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 hover:text-white text-slate-300 text-xs font-medium rounded-lg cursor-pointer transition-all duration-200 active:scale-[0.98]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={createOrgMutation.isPending}
-                  className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg cursor-pointer transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {createOrgMutation.isPending ? 'Creating...' : 'Create Workspace'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Dedicated Create Organization Modal */}
+      <CreateOrganizationModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      />
     </div>
   );
 }

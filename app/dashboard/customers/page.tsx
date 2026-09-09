@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useAuthStore } from '@/store/useAuthStore';
 import { Building2, Search, Plus, Mail, Shield, CheckCircle2 } from 'lucide-react';
 
 interface CustomerItem {
@@ -21,8 +21,8 @@ const CUSTOMERS: CustomerItem[] = [
 ];
 
 export default function CustomersPage() {
-  const params = useParams();
-  const orgSlug = (params?.organizationSlug as string) || 'acme';
+  const { selectedOrgSlug } = useAuthStore();
+  const orgSlug = selectedOrgSlug || 'acme';
   const [search, setSearch] = useState('');
 
   const filtered = CUSTOMERS.filter(

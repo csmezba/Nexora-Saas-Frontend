@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useAuthStore } from '@/store/useAuthStore';
 import { Ticket, Search, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 
 const TICKETS = [
@@ -11,8 +11,8 @@ const TICKETS = [
 ];
 
 export default function TicketsPage() {
-  const params = useParams();
-  const orgSlug = (params?.organizationSlug as string) || 'acme';
+  const { selectedOrgSlug } = useAuthStore();
+  const orgSlug = selectedOrgSlug || 'acme';
 
   return (
     <div className="space-y-6 font-sans text-slate-100">

@@ -14,10 +14,9 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { Users, Plus, UserPlus, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function TeamsPage() {
-  const params = useParams();
-  const orgSlug = (params?.organizationSlug as string) || 'acme';
   const queryClient = useQueryClient();
-  const { accessToken, selectedOrgPubId } = useAuthStore();
+  const { accessToken, selectedOrgPubId, selectedOrgSlug } = useAuthStore();
+  const orgSlug = selectedOrgSlug || 'acme';
 
   const [selectedTeamPubId, setSelectedTeamPubId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);

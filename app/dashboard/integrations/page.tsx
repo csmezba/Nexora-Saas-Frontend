@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useParams } from 'next/navigation';
+import { useAuthStore } from '@/store/useAuthStore';
 import { SlidersHorizontal, Check, Plug } from 'lucide-react';
 
 const INTEGRATIONS = [
@@ -12,8 +12,8 @@ const INTEGRATIONS = [
 ];
 
 export default function IntegrationsPage() {
-  const params = useParams();
-  const orgSlug = (params?.organizationSlug as string) || 'acme';
+  const { selectedOrgSlug } = useAuthStore();
+  const orgSlug = selectedOrgSlug || 'acme';
 
   return (
     <div className="space-y-6 font-sans text-slate-100">

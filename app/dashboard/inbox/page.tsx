@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useAuthStore } from '@/store/useAuthStore';
 import {
   Inbox,
   Search,
@@ -93,8 +93,8 @@ const CONVERSATIONS: ConversationItem[] = [
 ];
 
 export default function SupportInboxPage() {
-  const params = useParams();
-  const orgSlug = (params?.organizationSlug as string) || 'acme';
+  const { selectedOrgSlug } = useAuthStore();
+  const orgSlug = selectedOrgSlug || 'acme';
 
   const [activeConvId, setActiveConvId] = useState<string>('conv_1');
   const [replyText, setReplyText] = useState('');

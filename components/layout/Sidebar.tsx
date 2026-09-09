@@ -29,9 +29,6 @@ import {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const params = useParams();
-  const orgSlug = (params?.organizationSlug as string) || 'acme';
-
   const { user, accessToken, logout } = useAuthStore();
   const { sidebarOpen, setCommandPaletteOpen, theme, toggleTheme } = useAppStore();
 

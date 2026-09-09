@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useAuthStore } from '@/store/useAuthStore';
 import {
   BarChart3,
   TrendingUp,
@@ -16,8 +16,8 @@ import {
 } from 'lucide-react';
 
 export default function AnalyticsPage() {
-  const params = useParams();
-  const orgSlug = (params?.organizationSlug as string) || 'acme';
+  const { selectedOrgSlug } = useAuthStore();
+  const orgSlug = selectedOrgSlug || 'acme';
   const [dateRange, setDateRange] = useState('30d');
 
   return (

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useAuthStore } from '@/store/useAuthStore';
 import { useAppStore } from '@/store/useAppStore';
 import {
   CheckSquare,
@@ -101,8 +101,8 @@ const COLUMNS: { id: TaskCardItem['status']; label: string; color: string }[] = 
 ];
 
 export default function TasksPage() {
-  const params = useParams();
-  const orgSlug = (params?.organizationSlug as string) || 'acme';
+  const { selectedOrgSlug } = useAuthStore();
+  const orgSlug = selectedOrgSlug || 'acme';
 
   const [tasks, setTasks] = useState<TaskCardItem[]>(INITIAL_TASKS);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');

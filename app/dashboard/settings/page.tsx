@@ -25,10 +25,10 @@ import {
 } from 'lucide-react';
 
 export default function SettingsPage() {
-  const params = useParams();
-  const orgSlug = (params?.organizationSlug as string) || 'acme';
   const queryClient = useQueryClient();
-  const { accessToken } = useAuthStore();
+  const { accessToken, selectedOrgPubId, selectedOrgSlug } = useAuthStore();
+  const targetOrgKey = selectedOrgPubId || selectedOrgSlug || 'acme';
+  const orgSlug = selectedOrgSlug || 'acme';
 
   const [activeTab, setActiveTab] = useState<'general' | 'members' | 'roles' | 'permissions'>('general');
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -39,10 +39,10 @@ export default function SettingsPage() {
 
   // Queries
   const { data: orgData } = useQuery({
-    queryKey: ['organization', orgSlug],
+    queryKey: ['organization', targetOrgKey],
     queryFn: async () => {
       const res = await graphqlRequest<{ organization: any }>(ORGANIZATION_QUERY, {
-        pubIdOrSlug: orgSlug,
+        pubIdOrSlug: targetOrgKey,
       });
       if (res.organization) {
         setOrgName(res.organization.name);

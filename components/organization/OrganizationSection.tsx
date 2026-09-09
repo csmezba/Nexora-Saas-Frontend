@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { graphqlRequest } from '@/lib/graphql-client';
 import { useAuthStore } from '@/store/useAuthStore';
+import CreateOrganizationModal from '@/components/organization/CreateOrganizationModal';
 import {
   MY_ORGANIZATIONS_QUERY,
   ORGANIZATION_QUERY,
@@ -66,6 +67,7 @@ export default function OrganizationSection() {
   const { accessToken, selectedOrgPubId, setSelectedOrgPubId } = useAuthStore();
 
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Forms state
   const [createName, setCreateName] = useState('');
@@ -297,13 +299,23 @@ export default function OrganizationSection() {
             </h3>
           </div>
 
-          <button
-            onClick={() => refetchOrgs()}
-            className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md border border-slate-200 font-medium transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Refresh</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-lg font-medium cursor-pointer transition-all duration-200 active:scale-95 shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Organization</span>
+            </button>
+
+            <button
+              onClick={() => refetchOrgs()}
+              className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-lg border border-slate-200 font-medium cursor-pointer transition-all duration-200 active:scale-95"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Refresh</span>
+            </button>
+          </div>
         </div>
 
         {orgsLoading ? (
@@ -715,6 +727,17 @@ export default function OrganizationSection() {
           </form>
         </div>
       </div>
+
+      {/* Modal for Organization Form */}
+      <CreateOrganizationModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={(created) => {
+          setSelectedOrgPubId(created.pubId);
+          refetchOrgs();
+          setStatusMsg({ type: 'success', text: `Organization "${created.name}" created successfully!` });
+        }}
+      />
     </div>
   );
 }

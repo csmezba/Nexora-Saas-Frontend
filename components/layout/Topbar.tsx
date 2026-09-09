@@ -21,7 +21,7 @@ export default function Topbar() {
   const pathname = usePathname();
   const params = useParams();
   const { toggleSidebar, setCommandPaletteOpen } = useAppStore();
-  const { user } = useAuthStore();
+  const { user, selectedOrgSlug } = useAuthStore();
 
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [backendStatus, setBackendStatus] = useState<'online' | 'checking'>('online');
@@ -49,6 +49,11 @@ export default function Topbar() {
 
         <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
           <span className="text-slate-400 font-semibold">/dashboard</span>
+          {selectedOrgSlug && (
+            <span className="px-1.5 py-0.5 rounded bg-indigo-950/60 border border-indigo-800/40 text-indigo-300 text-[10px] font-semibold">
+              /{selectedOrgSlug}
+            </span>
+          )}
           {sectionName !== 'dashboard' && (
             <>
               <span className="text-slate-600">/</span>

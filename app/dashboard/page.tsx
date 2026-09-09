@@ -27,7 +27,7 @@ import {
 export default function DashboardPage() {
   const params = useParams();
   const orgSlug = (params?.organizationSlug as string) || 'acme';
-  const { accessToken, user } = useAuthStore();
+  const { accessToken, user, selectedOrgPubId, selectedOrgSlug } = useAuthStore();
 
   // Queries to backend GraphQL
   const { data: myOrgs = [] } = useQuery({
@@ -40,9 +40,12 @@ export default function DashboardPage() {
     enabled: !!accessToken,
   });
 
-  const activeOrg = myOrgs.find((o) => o.slug === orgSlug) || {
-    name: orgSlug.toUpperCase(),
-    slug: orgSlug,
+  const activeOrg = myOrgs.find((o) =>
+    (selectedOrgPubId && o.pubId === selectedOrgPubId) ||
+    (selectedOrgSlug && o.slug === selectedOrgSlug)
+  ) || myOrgs[0] || {
+    name: 'Acme Corporation',
+    slug: 'acme',
     memberCount: 12,
     currentUserRole: 'OWNER',
   };
@@ -112,7 +115,7 @@ export default function DashboardPage() {
       <div className="bg-gradient-to-r from-indigo-900/40 via-slate-900 to-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-wrap items-center justify-between gap-4">
         <div>
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-indigo-400">
-            Executive Overview &bull; /{orgSlug}
+            Executive Overview &bull; /{activeOrg.slug}
           </span>
           <h2 className="text-2xl font-bold text-slate-100 mt-1">
             Good morning, {user?.fullName || 'Workspace Lead'}
