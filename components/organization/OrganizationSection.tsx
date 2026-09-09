@@ -510,7 +510,7 @@ export default function OrganizationSection() {
                 required
                 value={createName}
                 onChange={(e) => setCreateName(e.target.value)}
-                placeholder="Acme Corp"
+                placeholder="Nexora Corp"
                 className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
             </div>
@@ -522,7 +522,7 @@ export default function OrganizationSection() {
                 required
                 value={createSlug}
                 onChange={(e) => setCreateSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-                placeholder="acme-corp"
+                placeholder="nexora-corp"
                 className="w-full px-3 py-1.5 border border-slate-300 rounded-md text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
             </div>

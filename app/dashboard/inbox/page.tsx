@@ -32,8 +32,8 @@ const CONVERSATIONS: ConversationItem[] = [
   {
     id: 'conv_1',
     customerName: 'Marcus Vance',
-    company: 'Acme Corp',
-    email: 'marcus@acme.com',
+    company: 'Nexus Dynamics',
+    email: 'marcus@nexusdynamics.io',
     plan: 'Enterprise Pro',
     lastMessage: 'How do we configure custom SSO SAML login for our team?',
     time: '10m ago',
@@ -94,7 +94,7 @@ const CONVERSATIONS: ConversationItem[] = [
 
 export default function SupportInboxPage() {
   const { selectedOrgSlug } = useAuthStore();
-  const orgSlug = selectedOrgSlug || 'acme';
+  const orgSlug = selectedOrgSlug || 'workspace';
 
   const [activeConvId, setActiveConvId] = useState<string>('conv_1');
   const [replyText, setReplyText] = useState('');

@@ -111,7 +111,7 @@ export default function CreateOrganizationModal({
     },
     onSuccess: (data) => {
       const created = data.createOrganization;
-      setSelectedOrg(created.pubId, created.slug);
+      setSelectedOrg(created.pubId, created.slug, created.name);
       queryClient.invalidateQueries({ queryKey: ['myOrganizations'] });
       queryClient.invalidateQueries({ queryKey: ['organization'] });
       
@@ -197,7 +197,7 @@ export default function CreateOrganizationModal({
                 autoFocus
                 value={name}
                 onChange={handleNameChange}
-                placeholder="e.g. Acme Corporation"
+                placeholder="e.g. Nexora Cloud"
                 className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
               />
             </div>
@@ -229,7 +229,7 @@ export default function CreateOrganizationModal({
                 required
                 value={slug}
                 onChange={handleSlugChange}
-                placeholder="acme-corporation"
+                placeholder="nexora-cloud"
                 className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
               />
             </div>

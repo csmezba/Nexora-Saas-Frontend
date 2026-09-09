@@ -14,7 +14,7 @@ import {
 
 export default function BillingPage() {
   const { selectedOrgSlug } = useAuthStore();
-  const orgSlug = selectedOrgSlug || 'acme';
+  const orgSlug = selectedOrgSlug || 'workspace';
 
   const plans = [
     {

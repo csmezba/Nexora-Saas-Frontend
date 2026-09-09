@@ -70,7 +70,7 @@ const SNIPPETS = [
   }
 }`,
     variables: JSON.stringify(
-      { input: { name: 'Acme Testing', slug: 'acme-testing' } },
+      { input: { name: 'Sample Workspace', slug: 'sample-workspace' } },
       null,
       2
     ),

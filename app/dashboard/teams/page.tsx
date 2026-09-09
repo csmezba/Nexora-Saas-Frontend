@@ -15,8 +15,8 @@ import { Users, Plus, UserPlus, CheckCircle2, AlertCircle, RefreshCw } from 'luc
 
 export default function TeamsPage() {
   const queryClient = useQueryClient();
-  const { accessToken, selectedOrgPubId, selectedOrgSlug } = useAuthStore();
-  const orgSlug = selectedOrgSlug || 'acme';
+  const { accessToken, selectedOrgPubId, selectedOrgSlug, selectedOrgName } = useAuthStore();
+  const orgSlug = selectedOrgSlug || 'workspace';
 
   const [selectedTeamPubId, setSelectedTeamPubId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);

@@ -5,14 +5,14 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { Ticket, Search, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 
 const TICKETS = [
-  { id: 'TCK-101', subject: 'SAML SSO integration failing with Okta', customer: 'Acme Corp', priority: 'HIGH', status: 'OPEN', date: 'Sep 08' },
+  { id: 'TCK-101', subject: 'SAML SSO integration failing with Okta', customer: 'Zenith Labs', priority: 'HIGH', status: 'OPEN', date: 'Sep 08' },
   { id: 'TCK-102', subject: 'AI token quota expansion request', customer: 'Vanguard Systems', priority: 'MEDIUM', status: 'IN_PROGRESS', date: 'Sep 07' },
   { id: 'TCK-103', subject: 'Webhook delivery failure on task_updated', customer: 'CloudScale Inc', priority: 'URGENT', status: 'RESOLVED', date: 'Sep 06' },
 ];
 
 export default function TicketsPage() {
   const { selectedOrgSlug } = useAuthStore();
-  const orgSlug = selectedOrgSlug || 'acme';
+  const orgSlug = selectedOrgSlug || 'workspace';
 
   return (
     <div className="space-y-6 font-sans text-slate-100">

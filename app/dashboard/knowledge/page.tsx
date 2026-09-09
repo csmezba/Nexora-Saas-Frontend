@@ -12,7 +12,7 @@ const DOCUMENTS = [
 
 export default function KnowledgePage() {
   const { selectedOrgSlug } = useAuthStore();
-  const orgSlug = selectedOrgSlug || 'acme';
+  const orgSlug = selectedOrgSlug || 'workspace';
 
   return (
     <div className="space-y-6 font-sans text-slate-100">

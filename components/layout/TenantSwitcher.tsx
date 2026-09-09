@@ -13,31 +13,30 @@ export default function TenantSwitcher() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { accessToken, selectedOrgPubId, selectedOrgSlug, setSelectedOrg } = useAuthStore();
+  const { accessToken, selectedOrgPubId, selectedOrgSlug, selectedOrgName, setSelectedOrg } = useAuthStore();
 
   const [open, setOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Fetch real user's organizations from GraphQL backend
-  const { data: myOrgs = [] } = useQuery({
+  const { data: myOrgs = [], isLoading } = useQuery({
     queryKey: ['myOrganizations', accessToken],
     queryFn: async () => {
       if (!accessToken) return [];
       const res = await graphqlRequest<{ myOrganizations: any[] }>(MY_ORGANIZATIONS_QUERY);
-      return res.myOrganizations;
+      return res.myOrganizations || [];
     },
     enabled: !!accessToken,
   });
 
+  const validOrgs = Array.isArray(myOrgs) ? myOrgs.filter((o: any) => o && typeof o === 'object') : [];
+
   // Auto-select first organization if none currently selected
   useEffect(() => {
-    const validOrgs = Array.isArray(myOrgs) ? myOrgs.filter((o: any) => o && typeof o === 'object') : [];
     if (validOrgs.length > 0 && (!selectedOrgPubId || !validOrgs.some((o: any) => o?.pubId === selectedOrgPubId))) {
-      setSelectedOrg(validOrgs[0].pubId || null, validOrgs[0].slug || null);
+      setSelectedOrg(validOrgs[0].pubId || null, validOrgs[0].slug || null, validOrgs[0].name || null);
     }
-  }, [myOrgs, selectedOrgPubId, setSelectedOrg]);
-
-  const validOrgs = Array.isArray(myOrgs) ? myOrgs.filter((o: any) => o && typeof o === 'object') : [];
+  }, [validOrgs, selectedOrgPubId, setSelectedOrg]);
 
   const activeOrg =
     validOrgs.find(
@@ -48,13 +47,13 @@ export default function TenantSwitcher() {
     validOrgs[0] ||
     null;
 
-  const orgName = activeOrg?.name?.trim() || 'Acme Corporation';
-  const orgSlug = activeOrg?.slug?.trim() || 'acme';
-  const orgInitial = (orgName.charAt(0) || 'A').toUpperCase();
+  const orgName = activeOrg?.name?.trim() || selectedOrgName || (isLoading ? 'Loading Workspace...' : 'Select Workspace');
+  const orgSlug = activeOrg?.slug?.trim() || selectedOrgSlug || 'workspace';
+  const orgInitial = (orgName.replace(/[^a-zA-Z0-9]/g, '').charAt(0) || 'W').toUpperCase();
 
   const handleSelectOrg = (org: any) => {
     if (!org) return;
-    setSelectedOrg(org.pubId || null, org.slug || null);
+    setSelectedOrg(org.pubId || null, org.slug || null, org.name || null);
     setOpen(false);
     queryClient.invalidateQueries();
   };
@@ -111,14 +110,18 @@ export default function TenantSwitcher() {
                 );
               })
             ) : (
-              <button
-                onClick={() =>
-                  handleSelectOrg({ name: 'Acme Corp', slug: 'acme', pubId: 'org_acme' })
-                }
-                className="w-full text-left p-2 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800 cursor-pointer transition-all duration-150"
-              >
-                Acme Corporation (/acme)
-              </button>
+              <div className="p-2 text-center text-xs text-slate-400">
+                <p>No organizations found.</p>
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    setShowCreateModal(true);
+                  }}
+                  className="mt-1 text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer underline"
+                >
+                  Create one now
+                </button>
+              </div>
             )}
           </div>
 

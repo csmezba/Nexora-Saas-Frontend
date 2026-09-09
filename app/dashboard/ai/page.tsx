@@ -34,7 +34,7 @@ const PROMPT_CHIPS = [
 
 export default function AIAssistantPage() {
   const { selectedOrgSlug } = useAuthStore();
-  const orgSlug = selectedOrgSlug || 'acme';
+  const orgSlug = selectedOrgSlug || 'workspace';
 
   const [inputPrompt, setInputPrompt] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);

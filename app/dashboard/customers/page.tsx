@@ -15,14 +15,14 @@ interface CustomerItem {
 }
 
 const CUSTOMERS: CustomerItem[] = [
-  { id: 'c_1', name: 'Marcus Vance', company: 'Acme Corp', email: 'marcus@acme.com', plan: 'Business Pro', joined: 'Jan 2026', status: 'ACTIVE' },
+  { id: 'c_1', name: 'Marcus Vance', company: 'Apex Global', email: 'marcus@apexglobal.io', plan: 'Business Pro', joined: 'Jan 2026', status: 'ACTIVE' },
   { id: 'c_2', name: 'Sarah Jenkins', company: 'Vanguard Systems', email: 'sarah@vanguard.io', plan: 'Enterprise Unlimited', joined: 'Feb 2026', status: 'EXPANDING' },
   { id: 'c_3', name: 'David Zhang', company: 'CloudScale Inc', email: 'david@cloudscale.net', plan: 'Developer Pro', joined: 'Mar 2026', status: 'CHURN_RISK' },
 ];
 
 export default function CustomersPage() {
   const { selectedOrgSlug } = useAuthStore();
-  const orgSlug = selectedOrgSlug || 'acme';
+  const orgSlug = selectedOrgSlug || 'workspace';
   const [search, setSearch] = useState('');
 
   const filtered = CUSTOMERS.filter(

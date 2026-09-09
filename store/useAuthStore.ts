@@ -17,12 +17,13 @@ interface AuthState {
   user: UserProfile | null;
   selectedOrgPubId: string | null;
   selectedOrgSlug: string | null;
+  selectedOrgName: string | null;
   backendUrl: string;
 
   setAuth: (payload: { accessToken: string; refreshToken: string; user?: UserProfile | null }) => void;
   setTokens: (payload: { accessToken: string; refreshToken: string }) => void;
   setUser: (user: UserProfile | null) => void;
-  setSelectedOrg: (orgPubId: string | null, orgSlug: string | null) => void;
+  setSelectedOrg: (orgPubId: string | null, orgSlug: string | null, orgName?: string | null) => void;
   setSelectedOrgPubId: (selectedOrgPubId: string | null) => void;
   setBackendUrl: (url: string) => void;
   logout: () => void;
@@ -36,6 +37,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       selectedOrgPubId: null,
       selectedOrgSlug: null,
+      selectedOrgName: null,
       backendUrl: 'http://localhost:8000/graphql',
 
       setAuth: ({ accessToken, refreshToken, user }) =>
@@ -50,8 +52,12 @@ export const useAuthStore = create<AuthState>()(
 
       setUser: (user) => set({ user }),
 
-      setSelectedOrg: (selectedOrgPubId, selectedOrgSlug) =>
-        set({ selectedOrgPubId, selectedOrgSlug }),
+      setSelectedOrg: (selectedOrgPubId, selectedOrgSlug, selectedOrgName) =>
+        set((state) => ({
+          selectedOrgPubId,
+          selectedOrgSlug,
+          selectedOrgName: selectedOrgName !== undefined ? selectedOrgName : state.selectedOrgName,
+        })),
 
       setSelectedOrgPubId: (selectedOrgPubId) =>
         set({ selectedOrgPubId }),
@@ -65,6 +71,7 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           selectedOrgPubId: null,
           selectedOrgSlug: null,
+          selectedOrgName: null,
         }),
     }),
     {

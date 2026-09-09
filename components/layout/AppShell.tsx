@@ -1,11 +1,36 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import CommandPalette from './CommandPalette';
+import { useAuthStore } from '@/store/useAuthStore';
+import { Loader2 } from 'lucide-react';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const { accessToken } = useAuthStore();
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (hydrated && !accessToken) {
+      router.push('/login');
+    }
+  }, [hydrated, accessToken, router]);
+
+  if (!hydrated) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-950 text-slate-400 font-sans">
+        <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex overflow-hidden bg-slate-950 text-slate-100 font-sans">
       {/* Left Navigation Sidebar */}

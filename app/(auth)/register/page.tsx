@@ -60,10 +60,10 @@ export default function RegisterPage() {
           }
         );
         const org = orgRes.createOrganization;
-        setSelectedOrg(org.pubId, org.slug);
+        setSelectedOrg(org.pubId, org.slug, org.name);
         return org.slug;
       }
-      return 'acme';
+      return null;
     },
     onSuccess: (targetSlug) => {
       queryClient.invalidateQueries();

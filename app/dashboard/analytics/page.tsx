@@ -17,7 +17,7 @@ import {
 
 export default function AnalyticsPage() {
   const { selectedOrgSlug } = useAuthStore();
-  const orgSlug = selectedOrgSlug || 'acme';
+  const orgSlug = selectedOrgSlug || 'workspace';
   const [dateRange, setDateRange] = useState('30d');
 
   return (

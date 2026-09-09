@@ -87,10 +87,10 @@ export default function MarketingLandingPage() {
             <ArrowRight className="w-4 h-4" />
           </Link>
           <Link
-            href="/acme/dashboard"
+            href="/dashboard"
             className="px-6 py-3.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 text-sm font-semibold rounded-xl transition-all"
           >
-            Explore live demo (/acme/dashboard)
+            Open Dashboard
           </Link>
         </div>
 
@@ -99,7 +99,7 @@ export default function MarketingLandingPage() {
           <div className="p-2 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl overflow-hidden">
             <div className="bg-slate-950 p-6 rounded-xl border border-slate-800/80 text-left font-mono text-xs space-y-4">
               <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                <span className="text-indigo-400 font-bold">/acme/dashboard &bull; Multi-Tenant Workspace</span>
+                <span className="text-indigo-400 font-bold">/dashboard &bull; Multi-Tenant Workspace</span>
                 <span className="text-emerald-400">● Live Connected</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

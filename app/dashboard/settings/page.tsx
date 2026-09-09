@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useParams } from 'next/navigation';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { graphqlRequest } from '@/lib/graphql-client';
 import {
@@ -10,6 +11,8 @@ import {
   ORGANIZATION_ROLES_QUERY,
   PERMISSIONS_QUERY,
   UPDATE_ORGANIZATION_MUTATION,
+  DELETE_ORGANIZATION_MUTATION,
+  MY_ORGANIZATIONS_QUERY,
 } from '@/graphql/documents';
 import { useAuthStore } from '@/store/useAuthStore';
 import {
@@ -17,18 +20,19 @@ import {
   Building2,
   Users,
   ShieldCheck,
-  KeyRound,
   CheckCircle2,
   AlertCircle,
   Save,
   Lock,
+  Trash2,
+  UserPlus,
+  ArrowRight,
 } from 'lucide-react';
 
 export default function SettingsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
-  const { accessToken, selectedOrgPubId, selectedOrgSlug } = useAuthStore();
-  const targetOrgKey = selectedOrgPubId || selectedOrgSlug || 'acme';
-  const orgSlug = selectedOrgSlug || 'acme';
+  const { accessToken, selectedOrgPubId, selectedOrgSlug, selectedOrgName, setSelectedOrg } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState<'general' | 'members' | 'roles' | 'permissions'>('general');
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -37,90 +41,135 @@ export default function SettingsPage() {
   const [orgName, setOrgName] = useState('');
   const [orgDesc, setOrgDesc] = useState('');
 
-  // Queries
-  const { data: orgData } = useQuery({
-    queryKey: ['organization', targetOrgKey],
+  // Fallback organization resolution
+  const { data: myOrgs = [] } = useQuery({
+    queryKey: ['myOrganizations', accessToken],
     queryFn: async () => {
-      const res = await graphqlRequest<{ organization: any }>(ORGANIZATION_QUERY, {
-        pubIdOrSlug: targetOrgKey,
-      });
-      if (res.organization) {
-        setOrgName(res.organization.name);
-        setOrgDesc(res.organization.description || '');
-      }
-      return res.organization;
+      if (!accessToken) return [];
+      const res = await graphqlRequest<{ myOrganizations: any[] }>(MY_ORGANIZATIONS_QUERY);
+      return res.myOrganizations || [];
     },
     enabled: !!accessToken,
   });
 
-  const { data: members = [] } = useQuery({
-    queryKey: ['organizationMembers', orgData?.pubId],
+  const validOrgs = Array.isArray(myOrgs) ? myOrgs.filter((o: any) => o && typeof o === 'object') : [];
+  const activeOrgFallback =
+    validOrgs.find(
+      (o: any) =>
+        (selectedOrgPubId && o.pubId === selectedOrgPubId) ||
+        (selectedOrgSlug && o.slug === selectedOrgSlug)
+    ) ||
+    validOrgs[0] ||
+    null;
+
+  const targetOrgKey = selectedOrgPubId || selectedOrgSlug || activeOrgFallback?.pubId || '';
+  const currentOrgSlug = selectedOrgSlug || activeOrgFallback?.slug || 'workspace';
+
+  // Queries
+  const { data: orgData } = useQuery({
+    queryKey: ['organization', targetOrgKey],
     queryFn: async () => {
-      if (!orgData?.pubId) return [];
-      const res = await graphqlRequest<{ organizationMembers: any[] }>(ORGANIZATION_MEMBERS_QUERY, {
-        organizationPubId: orgData.pubId,
+      if (!targetOrgKey) return null;
+      const res = await graphqlRequest<{ organization: any }>(ORGANIZATION_QUERY, {
+        pubIdOrSlug: targetOrgKey,
       });
-      return res.organizationMembers;
+      if (res.organization) {
+        setOrgName(res.organization.name || '');
+        setOrgDesc(res.organization.description || '');
+      }
+      return res.organization;
     },
-    enabled: !!orgData?.pubId && !!accessToken,
+    enabled: !!targetOrgKey && !!accessToken,
+  });
+
+  const effectivePubId = orgData?.pubId || selectedOrgPubId || activeOrgFallback?.pubId || '';
+
+  const { data: members = [] } = useQuery({
+    queryKey: ['organizationMembers', effectivePubId],
+    queryFn: async () => {
+      if (!effectivePubId) return [];
+      const res = await graphqlRequest<{ organizationMembers: any[] }>(ORGANIZATION_MEMBERS_QUERY, {
+        organizationPubId: effectivePubId,
+      });
+      return res.organizationMembers || [];
+    },
+    enabled: !!effectivePubId && !!accessToken,
   });
 
   const { data: roles = [] } = useQuery({
-    queryKey: ['organizationRoles', orgData?.pubId],
+    queryKey: ['organizationRoles', effectivePubId],
     queryFn: async () => {
-      if (!orgData?.pubId) return [];
+      if (!effectivePubId) return [];
       const res = await graphqlRequest<{ organizationRoles: any[] }>(ORGANIZATION_ROLES_QUERY, {
-        organizationPubId: orgData.pubId,
+        organizationPubId: effectivePubId,
       });
-      return res.organizationRoles;
+      return res.organizationRoles || [];
     },
-    enabled: !!orgData?.pubId && !!accessToken,
+    enabled: !!effectivePubId && !!accessToken,
   });
 
   const { data: permissions = [] } = useQuery({
     queryKey: ['permissions'],
     queryFn: async () => {
       const res = await graphqlRequest<{ permissions: any[] }>(PERMISSIONS_QUERY);
-      return res.permissions;
+      return res.permissions || [];
     },
     enabled: !!accessToken,
   });
 
-  // Mutation
+  // Mutations
   const updateOrgMutation = useMutation({
     mutationFn: async () => {
       return graphqlRequest<{ updateOrganization: any }>(UPDATE_ORGANIZATION_MUTATION, {
-        pubId: orgData?.pubId || orgSlug,
+        pubId: effectivePubId,
         input: {
-          name: orgName || undefined,
-          description: orgDesc || undefined,
+          name: orgName.trim() || undefined,
+          description: orgDesc.trim() || undefined,
         },
       });
     },
     onSuccess: (data) => {
       setStatusMsg({ type: 'success', text: `Updated settings for ${data.updateOrganization.name}` });
-      queryClient.invalidateQueries();
+      setSelectedOrg(data.updateOrganization.pubId, data.updateOrganization.slug, data.updateOrganization.name);
+      queryClient.invalidateQueries({ queryKey: ['myOrganizations'] });
+      queryClient.invalidateQueries({ queryKey: ['organization'] });
     },
     onError: (err: any) => setStatusMsg({ type: 'error', text: err.message }),
   });
 
+  const deleteOrgMutation = useMutation({
+    mutationFn: async () => {
+      return graphqlRequest<{ deleteOrganization: any }>(DELETE_ORGANIZATION_MUTATION, {
+        pubId: effectivePubId,
+      });
+    },
+    onSuccess: () => {
+      setSelectedOrg(null, null, null);
+      queryClient.invalidateQueries();
+      router.push('/dashboard');
+    },
+    onError: (err: any) => setStatusMsg({ type: 'error', text: err.message }),
+  });
+
+  const isOwner = orgData?.currentUserRole === 'OWNER';
+
   return (
     <div className="space-y-6 font-sans text-slate-100">
       {/* Top Banner */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-400">
+          <div className="p-2.5 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400">
             <Settings className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-              <span>Organization Settings & Roles</span>
+              <span>Organization Settings & Identity</span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800 font-bold">
-                {orgData?.currentUserRole || 'ADMIN'}
+                {orgData?.currentUserRole || 'MEMBER'}
               </span>
             </h2>
             <p className="text-xs text-slate-400">
-              Manage workspace configuration, members, custom roles, and security permissions for <span className="text-slate-200">/{orgSlug}</span>
+              Manage configuration, profile, and security permissions for <span className="text-slate-200">/{currentOrgSlug}</span>
             </p>
           </div>
         </div>
@@ -197,7 +246,7 @@ export default function SettingsPage() {
               <input
                 type="text"
                 disabled
-                value={orgSlug}
+                value={currentOrgSlug}
                 className="w-full px-3 py-2 bg-slate-950/60 border border-slate-800 rounded-lg text-slate-500 font-mono cursor-not-allowed"
               />
             </div>
@@ -215,20 +264,60 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={updateOrgMutation.isPending}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition-colors shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition-colors shadow-sm cursor-pointer"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{updateOrgMutation.isPending ? 'Saving...' : 'Save Settings'}</span>
             </button>
           </form>
+
+          {/* Danger Zone: Delete Organization */}
+          {isOwner && (
+            <div className="pt-6 mt-6 border-t border-rose-950/60 space-y-3">
+              <h4 className="text-xs font-bold text-rose-400 uppercase tracking-wider font-mono">
+                Danger Zone
+              </h4>
+              <div className="p-4 bg-rose-950/30 border border-rose-900/40 rounded-xl flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="font-semibold text-xs text-rose-200">Delete Organization</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Permanently remove this organization and all associated projects and teams.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm(`Are you sure you want to permanently delete this organization? This action cannot be undone.`)) {
+                      deleteOrgMutation.mutate();
+                    }
+                  }}
+                  disabled={deleteOrgMutation.isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-700 hover:bg-rose-600 disabled:opacity-50 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-sm whitespace-nowrap"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{deleteOrgMutation.isPending ? 'Deleting...' : 'Delete Organization'}</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Members Management Tab */}
       {activeTab === 'members' && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+          <div className="p-3 bg-slate-950 flex items-center justify-between border-b border-slate-800">
+            <span className="text-xs font-semibold text-slate-300">Workspace Members ({members.length})</span>
+            <Link
+              href="/dashboard/members"
+              className="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
+            >
+              <span>Manage & Invite Members</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
           <table className="w-full text-left text-xs font-sans">
-            <thead className="bg-slate-950 text-slate-400 font-mono border-b border-slate-800 uppercase text-[10px]">
+            <thead className="bg-slate-950/60 text-slate-400 font-mono border-b border-slate-800 uppercase text-[10px]">
               <tr>
                 <th className="p-3">User</th>
                 <th className="p-3">Email</th>

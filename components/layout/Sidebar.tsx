@@ -2,7 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname, useParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import TenantSwitcher from './TenantSwitcher';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useAppStore } from '@/store/useAppStore';
@@ -11,6 +12,7 @@ import {
   FolderKanban,
   CheckSquare,
   Users,
+  UserCheck,
   Building2,
   Inbox,
   Ticket,
@@ -29,14 +31,23 @@ import {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const { user, accessToken, logout } = useAuthStore();
   const { sidebarOpen, setCommandPaletteOpen, theme, toggleTheme } = useAppStore();
+
+  const handleLogout = () => {
+    logout();
+    queryClient.clear();
+    router.push('/login');
+  };
 
   const navGroups = [
     {
       group: 'Workspace',
       items: [
         { label: 'Dashboard', path: `/dashboard`, icon: LayoutDashboard },
+        { label: 'Members', path: `/dashboard/members`, icon: UserCheck },
       ],
     },
     {
@@ -167,7 +178,7 @@ export default function Sidebar() {
 
         {accessToken && (
           <button
-            onClick={() => logout()}
+            onClick={handleLogout}
             className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-rose-950/50 hover:border-rose-800/60 border border-slate-700 text-slate-400 hover:text-rose-300 text-xs font-medium cursor-pointer transition-all duration-200 active:scale-[0.98]"
           >
             <LogOut className="w-3.5 h-3.5" />

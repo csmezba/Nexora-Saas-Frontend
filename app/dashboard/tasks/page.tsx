@@ -101,8 +101,8 @@ const COLUMNS: { id: TaskCardItem['status']; label: string; color: string }[] = 
 ];
 
 export default function TasksPage() {
-  const { selectedOrgSlug } = useAuthStore();
-  const orgSlug = selectedOrgSlug || 'acme';
+  const { selectedOrgSlug, selectedOrgName } = useAuthStore();
+  const orgSlug = selectedOrgSlug || 'workspace';
 
   const [tasks, setTasks] = useState<TaskCardItem[]>(INITIAL_TASKS);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
