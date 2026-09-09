@@ -378,6 +378,17 @@ export const REMOVE_TEAM_MEMBER_MUTATION = `
 
 // --- ROLE & PERMISSION QUERIES & MUTATIONS ---
 
+export const ORGANIZATION_ROLE_ENUM_QUERY = `
+  query OrganizationRoleEnum {
+    __type(name: "OrganizationRole") {
+      enumValues {
+        name
+        description
+      }
+    }
+  }
+`;
+
 export const ORGANIZATION_ROLES_QUERY = `
   query OrganizationRoles($organizationPubId: String!) {
     organizationRoles(organizationPubId: $organizationPubId) {

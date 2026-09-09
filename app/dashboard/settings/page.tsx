@@ -15,6 +15,7 @@ import {
   MY_ORGANIZATIONS_QUERY,
 } from '@/graphql/documents';
 import { useAuthStore } from '@/store/useAuthStore';
+import RoleMatrixSection from '@/components/role/RoleMatrixSection';
 import {
   Settings,
   Building2,
@@ -341,6 +342,11 @@ export default function SettingsPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Roles Tab */}
+      {activeTab === 'roles' && (
+        <RoleMatrixSection organizationPubId={effectivePubId} />
       )}
 
       {/* Permissions Tab */}
