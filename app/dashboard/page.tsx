@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { graphqlRequest } from '@/lib/graphql-client';
 import {
@@ -25,8 +24,6 @@ import {
 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const params = useParams();
-  const orgSlug = (params?.organizationSlug as string) || 'acme';
   const { accessToken, user, selectedOrgPubId, selectedOrgSlug } = useAuthStore();
 
   // Queries to backend GraphQL
@@ -40,15 +37,18 @@ export default function DashboardPage() {
     enabled: !!accessToken,
   });
 
-  const activeOrg = myOrgs.find((o) =>
-    (selectedOrgPubId && o.pubId === selectedOrgPubId) ||
-    (selectedOrgSlug && o.slug === selectedOrgSlug)
-  ) || myOrgs[0] || {
-    name: 'Acme Corporation',
-    slug: 'acme',
-    memberCount: 12,
-    currentUserRole: 'OWNER',
-  };
+  const validOrgs = Array.isArray(myOrgs) ? myOrgs.filter((o: any) => o && typeof o === 'object') : [];
+  const activeOrg =
+    validOrgs.find(
+      (o) =>
+        (selectedOrgPubId && o.pubId === selectedOrgPubId) ||
+        (selectedOrgSlug && o.slug === selectedOrgSlug)
+    ) ||
+    validOrgs[0] ||
+    null;
+
+  const orgName = activeOrg?.name?.trim() || 'Acme Corporation';
+  const orgSlug = activeOrg?.slug?.trim() || 'acme';
 
   const { data: teams = [] } = useQuery({
     queryKey: ['organizationTeams', activeOrg?.pubId],
@@ -101,7 +101,7 @@ export default function DashboardPage() {
     },
     {
       title: 'Team Members',
-      value: (members.length || activeOrg.memberCount || 6).toString(),
+      value: (members.length || activeOrg?.memberCount || 6).toString(),
       change: `${teams.length} teams active`,
       icon: Users,
       color: 'text-emerald-400',
@@ -115,13 +115,13 @@ export default function DashboardPage() {
       <div className="bg-gradient-to-r from-indigo-900/40 via-slate-900 to-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-wrap items-center justify-between gap-4">
         <div>
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-indigo-400">
-            Executive Overview &bull; /{activeOrg.slug}
+            Executive Overview &bull; /{orgSlug}
           </span>
           <h2 className="text-2xl font-bold text-slate-100 mt-1">
             Good morning, {user?.fullName || 'Workspace Lead'}
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Here is what is happening across <strong className="text-slate-200">{activeOrg.name}</strong> today.
+            Here is what is happening across <strong className="text-slate-200">{orgName}</strong> today.
           </p>
         </div>
 

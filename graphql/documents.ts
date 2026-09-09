@@ -551,3 +551,99 @@ export const REMOVE_ROLE_FROM_MEMBER_MUTATION = `
     }
   }
 `;
+
+// --- PROJECT QUERIES & MUTATIONS ---
+
+export const ORGANIZATION_PROJECTS_QUERY = `
+  query OrganizationProjects($organizationPubId: String!) {
+    organizationProjects(organizationPubId: $organizationPubId) {
+      pubId
+      name
+      key
+      description
+      status
+      startDate
+      dueDate
+      memberCount
+      organizationPubId
+      teamPubId
+      team {
+        pubId
+        name
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const PROJECT_QUERY = `
+  query Project($pubId: String!) {
+    project(pubId: $pubId) {
+      pubId
+      name
+      key
+      description
+      status
+      startDate
+      dueDate
+      memberCount
+      organizationPubId
+      teamPubId
+      team {
+        pubId
+        name
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const CREATE_PROJECT_MUTATION = `
+  mutation CreateProject($input: CreateProjectInput!) {
+    createProject(input: $input) {
+      pubId
+      name
+      key
+      description
+      status
+      startDate
+      dueDate
+      memberCount
+      organizationPubId
+      teamPubId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_PROJECT_MUTATION = `
+  mutation UpdateProject($pubId: String!, $input: UpdateProjectInput!) {
+    updateProject(pubId: $pubId, input: $input) {
+      pubId
+      name
+      key
+      description
+      status
+      startDate
+      dueDate
+      memberCount
+      organizationPubId
+      teamPubId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const DELETE_PROJECT_MUTATION = `
+  mutation DeleteProject($pubId: String!) {
+    deleteProject(pubId: $pubId) {
+      success
+      message
+    }
+  }
+`;
+

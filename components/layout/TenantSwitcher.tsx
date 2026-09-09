@@ -31,22 +31,30 @@ export default function TenantSwitcher() {
 
   // Auto-select first organization if none currently selected
   useEffect(() => {
-    if (myOrgs.length > 0 && (!selectedOrgPubId || !myOrgs.some((o: any) => o.pubId === selectedOrgPubId))) {
-      setSelectedOrg(myOrgs[0].pubId, myOrgs[0].slug);
+    const validOrgs = Array.isArray(myOrgs) ? myOrgs.filter((o: any) => o && typeof o === 'object') : [];
+    if (validOrgs.length > 0 && (!selectedOrgPubId || !validOrgs.some((o: any) => o?.pubId === selectedOrgPubId))) {
+      setSelectedOrg(validOrgs[0].pubId || null, validOrgs[0].slug || null);
     }
   }, [myOrgs, selectedOrgPubId, setSelectedOrg]);
 
-  const activeOrg = myOrgs.find((o: any) =>
-    (selectedOrgPubId && o.pubId === selectedOrgPubId) ||
-    (selectedOrgSlug && o.slug === selectedOrgSlug)
-  ) || myOrgs[0] || {
-    name: 'Acme Corporation',
-    slug: 'acme',
-    currentUserRole: 'OWNER',
-  };
+  const validOrgs = Array.isArray(myOrgs) ? myOrgs.filter((o: any) => o && typeof o === 'object') : [];
+
+  const activeOrg =
+    validOrgs.find(
+      (o: any) =>
+        (selectedOrgPubId && o.pubId === selectedOrgPubId) ||
+        (selectedOrgSlug && o.slug === selectedOrgSlug)
+    ) ||
+    validOrgs[0] ||
+    null;
+
+  const orgName = activeOrg?.name?.trim() || 'Acme Corporation';
+  const orgSlug = activeOrg?.slug?.trim() || 'acme';
+  const orgInitial = (orgName.charAt(0) || 'A').toUpperCase();
 
   const handleSelectOrg = (org: any) => {
-    setSelectedOrg(org.pubId, org.slug);
+    if (!org) return;
+    setSelectedOrg(org.pubId || null, org.slug || null);
     setOpen(false);
     queryClient.invalidateQueries();
   };
@@ -59,11 +67,11 @@ export default function TenantSwitcher() {
       >
         <div className="flex items-center gap-2.5 overflow-hidden">
           <div className="w-7 h-7 rounded-md bg-indigo-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-sm transition-transform duration-200 group-hover:scale-105">
-            {activeOrg.name.charAt(0).toUpperCase()}
+            {orgInitial}
           </div>
           <div className="text-left overflow-hidden">
-            <p className="font-semibold text-xs text-slate-100 truncate">{activeOrg.name}</p>
-            <p className="text-[10px] font-mono text-slate-400 truncate">/{activeOrg.slug}</p>
+            <p className="font-semibold text-xs text-slate-100 truncate">{orgName}</p>
+            <p className="text-[10px] font-mono text-slate-400 truncate">/{orgSlug}</p>
           </div>
         </div>
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
@@ -77,12 +85,16 @@ export default function TenantSwitcher() {
           </div>
 
           <div className="space-y-0.5 max-h-48 overflow-y-auto">
-            {myOrgs.length > 0 ? (
-              myOrgs.map((org: any) => {
-                const isSelected = org.pubId === activeOrg.pubId || org.slug === activeOrg.slug;
+            {validOrgs.length > 0 ? (
+              validOrgs.map((org: any) => {
+                const isSelected =
+                  org &&
+                  ((activeOrg?.pubId && org.pubId === activeOrg.pubId) ||
+                    (activeOrg?.slug && org.slug === activeOrg.slug));
+                const itemOrgName = org?.name?.trim() || org?.slug || 'Unnamed Organization';
                 return (
                   <button
-                    key={org.pubId || org.slug}
+                    key={org?.pubId || org?.slug || Math.random().toString()}
                     onClick={() => handleSelectOrg(org)}
                     className={`w-full flex items-center justify-between p-2 rounded-lg text-xs font-medium cursor-pointer transition-all duration-150 hover:translate-x-0.5 ${
                       isSelected
@@ -91,10 +103,10 @@ export default function TenantSwitcher() {
                     }`}
                   >
                     <div className="flex items-center gap-2 truncate">
-                      <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                      <span className="truncate">{org.name}</span>
+                      <Building2 className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                      <span className="truncate">{itemOrgName}</span>
                     </div>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-indigo-400" />}
+                    {isSelected && <Check className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />}
                   </button>
                 );
               })
