@@ -926,4 +926,115 @@ export const REMOVE_TASK_DEPENDENCY_MUTATION = `
   }
 `;
 
+// --- SPRINT QUERIES & MUTATIONS ---
+
+export const PROJECT_SPRINTS_QUERY = `
+  query ProjectSprints($projectPubId: String!, $status: SprintStatus) {
+    projectSprints(projectPubId: $projectPubId, status: $status) {
+      pubId
+      name
+      goal
+      status
+      startDate
+      endDate
+      taskCount
+      projectPubId
+      tasks {
+        pubId
+        title
+        status
+        priority
+        position
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const SPRINT_QUERY = `
+  query Sprint($pubId: String!) {
+    sprint(pubId: $pubId) {
+      pubId
+      name
+      goal
+      status
+      startDate
+      endDate
+      taskCount
+      projectPubId
+      tasks {
+        pubId
+        title
+        status
+        priority
+        position
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const CREATE_SPRINT_MUTATION = `
+  mutation CreateSprint($input: CreateSprintInput!) {
+    createSprint(input: $input) {
+      pubId
+      name
+      goal
+      status
+      startDate
+      endDate
+      taskCount
+      projectPubId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_SPRINT_MUTATION = `
+  mutation UpdateSprint($pubId: String!, $input: UpdateSprintInput!) {
+    updateSprint(pubId: $pubId, input: $input) {
+      pubId
+      name
+      goal
+      status
+      startDate
+      endDate
+      taskCount
+      projectPubId
+      updatedAt
+    }
+  }
+`;
+
+export const DELETE_SPRINT_MUTATION = `
+  mutation DeleteSprint($pubId: String!) {
+    deleteSprint(pubId: $pubId) {
+      success
+      message
+    }
+  }
+`;
+
+export const ADD_TASK_TO_SPRINT_MUTATION = `
+  mutation AddTaskToSprint($input: AddSprintTaskInput!) {
+    addTaskToSprint(input: $input) {
+      success
+      message
+    }
+  }
+`;
+
+export const REMOVE_TASK_FROM_SPRINT_MUTATION = `
+  mutation RemoveTaskFromSprint($input: RemoveSprintTaskInput!) {
+    removeTaskFromSprint(input: $input) {
+      success
+      message
+    }
+  }
+`;
+
+
 

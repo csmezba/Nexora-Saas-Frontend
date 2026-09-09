@@ -18,6 +18,13 @@ import {
   CREATE_PROJECT_MUTATION,
   MY_ORGANIZATIONS_QUERY,
   ORGANIZATION_MEMBERS_QUERY,
+  PROJECT_SPRINTS_QUERY,
+  SPRINT_QUERY,
+  CREATE_SPRINT_MUTATION,
+  UPDATE_SPRINT_MUTATION,
+  DELETE_SPRINT_MUTATION,
+  ADD_TASK_TO_SPRINT_MUTATION,
+  REMOVE_TASK_FROM_SPRINT_MUTATION,
 } from '@/graphql/documents';
 import { useAuthStore } from '@/store/useAuthStore';
 import {
@@ -49,6 +56,7 @@ import {
   Link2,
   Send,
   CornerDownRight,
+  Play,
 } from 'lucide-react';
 
 export type TaskStatusType = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE';
@@ -354,6 +362,30 @@ export default function TasksPage() {
 
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Sprint Management state
+  const [selectedSprintPubId, setSelectedSprintPubId] = useState<string>('');
+  const [showCreateSprintModal, setShowCreateSprintModal] = useState(false);
+  const [showEditSprintModal, setShowEditSprintModal] = useState(false);
+  const [showDeleteSprintModal, setShowDeleteSprintModal] = useState(false);
+
+  // Create Sprint form
+  const [sprintName, setSprintName] = useState('');
+  const [sprintGoal, setSprintGoal] = useState('');
+  const [sprintStartDate, setSprintStartDate] = useState('');
+  const [sprintEndDate, setSprintEndDate] = useState('');
+  const [sprintStatus, setSprintStatus] = useState<'PLANNED' | 'ACTIVE' | 'COMPLETED'>('PLANNED');
+
+  // Edit Sprint form
+  const [editSprintName, setEditSprintName] = useState('');
+  const [editSprintGoal, setEditSprintGoal] = useState('');
+  const [editSprintStartDate, setEditSprintStartDate] = useState('');
+  const [editSprintEndDate, setEditSprintEndDate] = useState('');
+  const [editSprintStatus, setEditSprintStatus] = useState<'PLANNED' | 'ACTIVE' | 'COMPLETED'>('PLANNED');
+
+  // Drawer & Create Modal Sprint state
+  const [drawerSprintSelectPubId, setDrawerSprintSelectPubId] = useState<string>('');
+  const [newSprintPubId, setNewSprintPubId] = useState<string>('');
+
   // 1. Resolve Organization
   const { data: myOrgs = [] } = useQuery({
     queryKey: ['myOrganizations', accessToken],
@@ -400,32 +432,56 @@ export default function TasksPage() {
     if (projects.length > 0) {
       if (!selectedProjectPubId || !projects.some((p: any) => p.pubId === selectedProjectPubId)) {
         setSelectedProjectPubId(projects[0].pubId);
+        setSelectedSprintPubId('');
       }
     } else {
       setSelectedProjectPubId('');
+      setSelectedSprintPubId('');
     }
   }, [projects, selectedProjectPubId]);
 
   const activeProject = projects.find((p: any) => p.pubId === selectedProjectPubId) || projects[0] || null;
 
-  // 3. Fetch Tasks for selected project from database
+  // 3. Fetch Sprints for selected project from database
+  const { data: sprints = [], isLoading: isSprintsLoading } = useQuery({
+    queryKey: ['projectSprints', selectedProjectPubId],
+    queryFn: async () => {
+      if (!selectedProjectPubId) return [];
+      const res = await graphqlRequest<{ projectSprints: any[] }>(PROJECT_SPRINTS_QUERY, {
+        projectPubId: selectedProjectPubId,
+      });
+      return res.projectSprints || [];
+    },
+    enabled: !!selectedProjectPubId && !!accessToken,
+  });
+
+  const activeSprint = sprints.find((s: any) => s.pubId === selectedSprintPubId) || null;
+
+  // 4. Fetch Tasks for selected project from database (filtered by sprint if selected)
   const {
     data: tasks = [],
     isLoading: isTasksLoading,
     refetch: refetchTasks,
   } = useQuery({
-    queryKey: ['projectTasks', selectedProjectPubId],
+    queryKey: ['projectTasks', selectedProjectPubId, selectedSprintPubId],
     queryFn: async () => {
       if (!selectedProjectPubId) return [];
       const res = await graphqlRequest<{ projectTasks: any[] }>(PROJECT_TASKS_QUERY, {
         projectPubId: selectedProjectPubId,
+        sprintPubId: selectedSprintPubId || undefined,
       });
       return res.projectTasks || [];
     },
     enabled: !!selectedProjectPubId && !!accessToken,
   });
 
-  // 4. Fetch Organization Members for task assignment
+  // Sprint Progress stats
+  const sprintTotalCount = activeSprint ? tasks.length : 0;
+  const sprintDoneCount = activeSprint ? tasks.filter((t: any) => t.status === 'DONE').length : 0;
+  const sprintProgressPercent =
+    sprintTotalCount > 0 ? Math.round((sprintDoneCount / sprintTotalCount) * 100) : 0;
+
+  // 5. Fetch Organization Members for task assignment
   const { data: members = [] } = useQuery({
     queryKey: ['organizationMembers', effectiveOrgPubId],
     queryFn: async () => {
@@ -521,6 +577,7 @@ export default function TasksPage() {
           dueDate: newDueDate ? new Date(newDueDate).toISOString() : undefined,
           position: (tasks.length + 1) * 1000.0,
           assigneeUserPubIds: selectedAssigneePubIds.length > 0 ? selectedAssigneePubIds : undefined,
+          sprintPubId: newSprintPubId || (selectedSprintPubId || undefined),
         },
       });
 
@@ -572,7 +629,9 @@ export default function TasksPage() {
       setNewComment('');
       setNewDependencyTaskId('');
       setNewDependencyType('BLOCKS');
+      setNewSprintPubId('');
       queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+      queryClient.invalidateQueries({ queryKey: ['projectSprints', selectedProjectPubId] });
       queryClient.invalidateQueries({ queryKey: ['organizationProjects', effectiveOrgPubId] });
     },
     onError: (err: any) => {
@@ -804,6 +863,151 @@ export default function TasksPage() {
     },
   });
 
+  // --- SPRINT MUTATIONS ---
+
+  // 9. Mutation: Create Sprint
+  const createSprintMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedProjectPubId) throw new Error('No project selected.');
+      return graphqlRequest<{ createSprint: any }>(CREATE_SPRINT_MUTATION, {
+        input: {
+          projectPubId: selectedProjectPubId,
+          name: sprintName.trim(),
+          goal: sprintGoal.trim() || undefined,
+          startDate: new Date(sprintStartDate).toISOString(),
+          endDate: new Date(sprintEndDate).toISOString(),
+          status: sprintStatus,
+        },
+      });
+    },
+    onSuccess: (data) => {
+      setStatusMsg({
+        type: 'success',
+        text: `Sprint "${data?.createSprint?.name || sprintName}" created.`,
+      });
+      setShowCreateSprintModal(false);
+      setSprintName('');
+      setSprintGoal('');
+      setSprintStartDate('');
+      setSprintEndDate('');
+      setSprintStatus('PLANNED');
+      if (data?.createSprint?.pubId) {
+        setSelectedSprintPubId(data.createSprint.pubId);
+      }
+      queryClient.invalidateQueries({ queryKey: ['projectSprints', selectedProjectPubId] });
+    },
+    onError: (err: any) => {
+      setStatusMsg({ type: 'error', text: err?.message || 'Failed to create sprint.' });
+    },
+  });
+
+  // 10. Mutation: Update Sprint
+  const updateSprintMutation = useMutation({
+    mutationFn: async ({
+      pubId,
+      status,
+      name,
+      goal,
+      startDate,
+      endDate,
+    }: {
+      pubId?: string;
+      status?: 'PLANNED' | 'ACTIVE' | 'COMPLETED';
+      name?: string;
+      goal?: string;
+      startDate?: string;
+      endDate?: string;
+    }) => {
+      const targetPubId = pubId || selectedSprintPubId;
+      if (!targetPubId) throw new Error('No sprint selected.');
+      return graphqlRequest<{ updateSprint: any }>(UPDATE_SPRINT_MUTATION, {
+        pubId: targetPubId,
+        input: {
+          name: name ? name.trim() : undefined,
+          goal: goal !== undefined ? goal.trim() || undefined : undefined,
+          startDate: startDate ? new Date(startDate).toISOString() : undefined,
+          endDate: endDate ? new Date(endDate).toISOString() : undefined,
+          status,
+        },
+      });
+    },
+    onSuccess: (data) => {
+      setStatusMsg({
+        type: 'success',
+        text: `Sprint "${data?.updateSprint?.name || 'Sprint'}" updated.`,
+      });
+      setShowEditSprintModal(false);
+      queryClient.invalidateQueries({ queryKey: ['projectSprints', selectedProjectPubId] });
+      queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+    },
+    onError: (err: any) => {
+      setStatusMsg({ type: 'error', text: err?.message || 'Failed to update sprint.' });
+    },
+  });
+
+  // 11. Mutation: Delete Sprint
+  const deleteSprintMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedSprintPubId) throw new Error('No sprint selected.');
+      return graphqlRequest<{ deleteSprint: any }>(DELETE_SPRINT_MUTATION, {
+        pubId: selectedSprintPubId,
+      });
+    },
+    onSuccess: (data) => {
+      setStatusMsg({
+        type: 'success',
+        text: data?.deleteSprint?.message || 'Sprint deleted.',
+      });
+      setShowDeleteSprintModal(false);
+      setSelectedSprintPubId('');
+      queryClient.invalidateQueries({ queryKey: ['projectSprints', selectedProjectPubId] });
+      queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+    },
+    onError: (err: any) => {
+      setStatusMsg({ type: 'error', text: err?.message || 'Failed to delete sprint.' });
+    },
+  });
+
+  // 12. Mutation: Add Task to Sprint
+  const addTaskToSprintMutation = useMutation({
+    mutationFn: async ({ sprintPubId, taskPubId }: { sprintPubId: string; taskPubId: string }) => {
+      return graphqlRequest<{ addTaskToSprint: any }>(ADD_TASK_TO_SPRINT_MUTATION, {
+        input: { sprintPubId, taskPubId },
+      });
+    },
+    onSuccess: (data) => {
+      setStatusMsg({
+        type: 'success',
+        text: data?.addTaskToSprint?.message || 'Task assigned to sprint.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['projectSprints', selectedProjectPubId] });
+      queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+    },
+    onError: (err: any) => {
+      setStatusMsg({ type: 'error', text: err?.message || 'Failed to assign task to sprint.' });
+    },
+  });
+
+  // 13. Mutation: Remove Task from Sprint
+  const removeTaskFromSprintMutation = useMutation({
+    mutationFn: async ({ sprintPubId, taskPubId }: { sprintPubId: string; taskPubId: string }) => {
+      return graphqlRequest<{ removeTaskFromSprint: any }>(REMOVE_TASK_FROM_SPRINT_MUTATION, {
+        input: { sprintPubId, taskPubId },
+      });
+    },
+    onSuccess: (data) => {
+      setStatusMsg({
+        type: 'success',
+        text: data?.removeTaskFromSprint?.message || 'Task moved back to backlog.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['projectSprints', selectedProjectPubId] });
+      queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+    },
+    onError: (err: any) => {
+      setStatusMsg({ type: 'error', text: err?.message || 'Failed to remove task from sprint.' });
+    },
+  });
+
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent, taskPubId: string) => {
     e.dataTransfer.setData('text/plain', taskPubId);
@@ -902,20 +1106,65 @@ export default function TasksPage() {
         {/* Project Selector & View Mode Switcher */}
         <div className="flex flex-wrap items-center gap-3">
           {projects.length > 0 && (
-            <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
-              <FolderKanban className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
-              <select
-                value={selectedProjectPubId}
-                onChange={(e) => setSelectedProjectPubId(e.target.value)}
-                className="bg-transparent text-xs text-slate-200 font-semibold focus:outline-none cursor-pointer pr-2 font-mono"
-              >
-                {projects.map((p: any) => (
-                  <option key={p.pubId} value={p.pubId} className="bg-slate-900 text-slate-200">
-                    [{p.key}] {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <>
+              {/* Project Dropdown */}
+              <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                <FolderKanban className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                <select
+                  value={selectedProjectPubId}
+                  onChange={(e) => {
+                    setSelectedProjectPubId(e.target.value);
+                    setSelectedSprintPubId('');
+                  }}
+                  className="bg-transparent text-xs text-slate-200 font-semibold focus:outline-none cursor-pointer pr-2 font-mono"
+                >
+                  {projects.map((p: any) => (
+                    <option key={p.pubId} value={p.pubId} className="bg-slate-900 text-slate-200">
+                      [{p.key}] {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sprint Selector Dropdown */}
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+                  <select
+                    value={selectedSprintPubId}
+                    onChange={(e) => setSelectedSprintPubId(e.target.value)}
+                    className="bg-transparent text-xs text-slate-200 font-semibold focus:outline-none cursor-pointer pr-2 font-mono max-w-[190px] truncate"
+                  >
+                    <option value="" className="bg-slate-900 text-slate-200">
+                      All Tasks ({tasks.length})
+                    </option>
+                    {sprints.map((s: any) => (
+                      <option key={s.pubId} value={s.pubId} className="bg-slate-900 text-slate-200">
+                        [{s.status}] {s.name} ({s.taskCount || 0})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSprintName('');
+                    setSprintGoal('');
+                    setSprintStartDate(new Date().toISOString().slice(0, 10));
+                    const twoWeeks = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+                    setSprintEndDate(twoWeeks);
+                    setSprintStatus('PLANNED');
+                    setShowCreateSprintModal(true);
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                  title="Plan New Sprint"
+                >
+                  <Plus className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Sprint</span>
+                </button>
+              </div>
+            </>
           )}
 
           {/* View Mode */}
@@ -1017,6 +1266,133 @@ export default function TasksPage() {
             <Plus className="w-4 h-4" />
             <span>Create Project</span>
           </button>
+        </div>
+      )}
+
+      {/* ACTIVE SPRINT MILESTONE BANNER */}
+      {activeSprint && (
+        <div className="p-4 bg-gradient-to-r from-indigo-950/40 via-slate-900 to-slate-900 border border-indigo-500/30 rounded-2xl shadow-sm space-y-3 animate-in fade-in duration-200">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 rounded-xl shadow-inner">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <h3 className="text-base font-bold text-slate-100">{activeSprint.name}</h3>
+                  <span
+                    className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                      activeSprint.status === 'ACTIVE'
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 font-bold'
+                        : activeSprint.status === 'COMPLETED'
+                        ? 'bg-slate-800 border-slate-700 text-slate-400'
+                        : 'bg-sky-500/10 border-sky-500/30 text-sky-300'
+                    }`}
+                  >
+                    {activeSprint.status}
+                  </span>
+                </div>
+                {activeSprint.goal && (
+                  <p className="text-xs text-slate-400 mt-0.5">{activeSprint.goal}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs">
+              {activeSprint.status === 'PLANNED' && (
+                <button
+                  type="button"
+                  disabled={updateSprintMutation.isPending}
+                  onClick={() => {
+                    updateSprintMutation.mutate({
+                      pubId: activeSprint.pubId,
+                      status: 'ACTIVE',
+                    });
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold cursor-pointer transition-colors shadow-sm"
+                >
+                  <Play className="w-3 h-3 fill-current" />
+                  <span>Start Sprint</span>
+                </button>
+              )}
+
+              {activeSprint.status === 'ACTIVE' && (
+                <button
+                  type="button"
+                  disabled={updateSprintMutation.isPending}
+                  onClick={() => {
+                    updateSprintMutation.mutate({
+                      pubId: activeSprint.pubId,
+                      status: 'COMPLETED',
+                    });
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold cursor-pointer transition-colors shadow-sm"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Complete Sprint</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEditSprintName(activeSprint.name);
+                  setEditSprintGoal(activeSprint.goal || '');
+                  setEditSprintStartDate(
+                    activeSprint.startDate ? activeSprint.startDate.slice(0, 10) : ''
+                  );
+                  setEditSprintEndDate(
+                    activeSprint.endDate ? activeSprint.endDate.slice(0, 10) : ''
+                  );
+                  setEditSprintStatus(activeSprint.status);
+                  setShowEditSprintModal(true);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-semibold cursor-pointer transition-colors"
+              >
+                <Edit2 className="w-3 h-3 text-slate-400" />
+                <span>Edit</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowDeleteSprintModal(true)}
+                className="p-1.5 hover:bg-rose-950/60 hover:text-rose-400 text-slate-500 rounded-lg cursor-pointer transition-colors"
+                title="Delete Sprint"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Sprint Progress Bar */}
+          <div className="space-y-1.5 pt-1 border-t border-slate-800/80 text-[11px] font-mono">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="flex items-center gap-1.5">
+                <CalendarIcon className="w-3.5 h-3.5 text-slate-500" />
+                <span>
+                  {new Date(activeSprint.startDate).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                  })}{' '}
+                  –{' '}
+                  {new Date(activeSprint.endDate).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </span>
+              </span>
+              <span className="font-semibold text-slate-300">
+                {sprintDoneCount} of {sprintTotalCount} tasks done ({sprintProgressPercent}%)
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 transition-all duration-300"
+                style={{ width: `${sprintProgressPercent}%` }}
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -1435,6 +1811,85 @@ export default function TasksPage() {
                     />
                   </div>
                 </div>
+
+                {/* Task Sprint Milestone Section */}
+                {(() => {
+                  const currentTaskSprint = sprints.find((s: any) =>
+                    (s.tasks || []).some((st: any) => st.pubId === selectedTask.pubId)
+                  );
+
+                  return (
+                    <div className="space-y-2 pt-2 border-t border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-medium text-slate-300 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>Sprint Milestone</span>
+                        </label>
+                        {currentTaskSprint && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
+                            {currentTaskSprint.status}
+                          </span>
+                        )}
+                      </div>
+
+                      {currentTaskSprint ? (
+                        <div className="flex items-center justify-between p-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-100 truncate">{currentTaskSprint.name}</p>
+                            <p className="text-[10px] text-slate-500 font-mono">
+                              {new Date(currentTaskSprint.startDate).toLocaleDateString()} –{' '}
+                              {new Date(currentTaskSprint.endDate).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={removeTaskFromSprintMutation.isPending}
+                            onClick={() => {
+                              removeTaskFromSprintMutation.mutate({
+                                sprintPubId: currentTaskSprint.pubId,
+                                taskPubId: selectedTask.pubId,
+                              });
+                            }}
+                            className="px-2.5 py-1 text-[11px] bg-slate-800 hover:bg-rose-950 hover:text-rose-300 text-slate-300 rounded border border-slate-700 hover:border-rose-800 cursor-pointer transition-colors"
+                          >
+                            Move to Backlog
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={drawerSprintSelectPubId}
+                            onChange={(e) => setDrawerSprintSelectPubId(e.target.value)}
+                            className="flex-1 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-sans cursor-pointer"
+                          >
+                            <option value="">Select sprint to assign...</option>
+                            {sprints.map((s: any) => (
+                              <option key={s.pubId} value={s.pubId}>
+                                [{s.status}] {s.name}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            disabled={!drawerSprintSelectPubId || addTaskToSprintMutation.isPending}
+                            onClick={() => {
+                              if (drawerSprintSelectPubId) {
+                                addTaskToSprintMutation.mutate({
+                                  sprintPubId: drawerSprintSelectPubId,
+                                  taskPubId: selectedTask.pubId,
+                                });
+                                setDrawerSprintSelectPubId('');
+                              }
+                            }}
+                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap shadow-sm"
+                          >
+                            Assign
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Task Assignees Section */}
                 {(() => {
@@ -1911,6 +2366,27 @@ export default function TasksPage() {
                 />
               </div>
 
+              {/* Sprint Milestone (Optional) */}
+              <div>
+                <label className="block font-medium text-slate-300 mb-1 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Sprint Milestone (Optional)</span>
+                </label>
+                <select
+                  value={newSprintPubId}
+                  onChange={(e) => setNewSprintPubId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-sans cursor-pointer"
+                >
+                  <option value="">No Sprint (Project Backlog)</option>
+                  {sprints.map((s: any) => (
+                    <option key={s.pubId} value={s.pubId}>
+                      [{s.status}] {s.name} ({new Date(s.startDate).toLocaleDateString()} –{' '}
+                      {new Date(s.endDate).toLocaleDateString()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {/* Assignees Selector */}
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -2158,6 +2634,260 @@ export default function TasksPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE SPRINT MODAL */}
+      {showCreateSprintModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 text-slate-100 font-sans space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+                <span>Plan New Sprint</span>
+              </h3>
+              <button
+                onClick={() => setShowCreateSprintModal(false)}
+                className="text-slate-400 hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                createSprintMutation.mutate();
+              }}
+              className="space-y-3.5 text-xs font-sans"
+            >
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">
+                  Sprint Name <span className="text-indigo-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={sprintName}
+                  onChange={(e) => setSprintName(e.target.value)}
+                  placeholder="e.g. Sprint 1 - Core MVP"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">Sprint Goal (Optional)</label>
+                <textarea
+                  rows={2}
+                  value={sprintGoal}
+                  onChange={(e) => setSprintGoal(e.target.value)}
+                  placeholder="What is the key milestone or deliverable for this sprint?"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-slate-300 mb-1">Start Date *</label>
+                  <CalendarDatePicker
+                    value={sprintStartDate}
+                    onChange={setSprintStartDate}
+                    placeholder="Select start date..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-slate-300 mb-1">End Date *</label>
+                  <CalendarDatePicker
+                    value={sprintEndDate}
+                    onChange={setSprintEndDate}
+                    placeholder="Select end date..."
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">Initial Status</label>
+                <select
+                  value={sprintStatus}
+                  onChange={(e) => setSprintStatus(e.target.value as any)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono cursor-pointer"
+                >
+                  <option value="PLANNED">PLANNED (Upcoming)</option>
+                  <option value="ACTIVE">ACTIVE (In Progress)</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2.5 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateSprintModal(false)}
+                  className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    createSprintMutation.isPending ||
+                    !sprintName.trim() ||
+                    !sprintStartDate ||
+                    !sprintEndDate
+                  }
+                  className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  {createSprintMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Create Sprint</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT SPRINT MODAL */}
+      {showEditSprintModal && activeSprint && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 text-slate-100 font-sans space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-indigo-400" />
+                <span>Edit Sprint Details</span>
+              </h3>
+              <button
+                onClick={() => setShowEditSprintModal(false)}
+                className="text-slate-400 hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                updateSprintMutation.mutate({
+                  pubId: activeSprint.pubId,
+                  name: editSprintName,
+                  goal: editSprintGoal,
+                  startDate: editSprintStartDate,
+                  endDate: editSprintEndDate,
+                  status: editSprintStatus,
+                });
+              }}
+              className="space-y-3.5 text-xs font-sans"
+            >
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">Sprint Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editSprintName}
+                  onChange={(e) => setEditSprintName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">Sprint Goal</label>
+                <textarea
+                  rows={2}
+                  value={editSprintGoal}
+                  onChange={(e) => setEditSprintGoal(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-slate-300 mb-1">Start Date</label>
+                  <CalendarDatePicker
+                    value={editSprintStartDate}
+                    onChange={setEditSprintStartDate}
+                    placeholder="Start date..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-medium text-slate-300 mb-1">End Date</label>
+                  <CalendarDatePicker
+                    value={editSprintEndDate}
+                    onChange={setEditSprintEndDate}
+                    placeholder="End date..."
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">Sprint Status</label>
+                <select
+                  value={editSprintStatus}
+                  onChange={(e) => setEditSprintStatus(e.target.value as any)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono cursor-pointer"
+                >
+                  <option value="PLANNED">PLANNED</option>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="COMPLETED">COMPLETED</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2.5 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowEditSprintModal(false)}
+                  className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateSprintMutation.isPending || !editSprintName.trim()}
+                  className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  {updateSprintMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE SPRINT CONFIRMATION MODAL */}
+      {showDeleteSprintModal && activeSprint && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-slate-900 border border-rose-900/50 rounded-2xl shadow-2xl p-6 text-slate-100 font-sans space-y-4">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="p-2 bg-rose-950/80 rounded-xl border border-rose-800/50">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-bold text-slate-100">Delete Sprint</h3>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Are you sure you want to delete sprint{' '}
+              <span className="font-bold text-white">"{activeSprint.name}"</span>?
+              Tasks currently assigned to this sprint will safely return to the general project backlog.
+            </p>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteSprintModal(false)}
+                className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteSprintMutation.isPending}
+                onClick={() => deleteSprintMutation.mutate()}
+                className="flex-1 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-sm"
+              >
+                {deleteSprintMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Delete Sprint</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
