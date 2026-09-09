@@ -151,7 +151,7 @@ export default function RegisterPage() {
 
           <button
             type="submit"
-            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs cursor-pointer transition-all duration-200 hover:shadow-lg hover:shadow-indigo-600/20 active:scale-[0.98] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
           > 
             <span>{'Create Account'}</span>
             <ArrowRight className="w-4 h-4" />
@@ -160,7 +160,7 @@ export default function RegisterPage() {
 
         <div className="pt-2 text-center text-xs text-slate-400">
           Already have an account?{' '}
-          <Link href="/login" className="text-indigo-400 font-semibold hover:underline">
+          <Link href="/login" className="text-indigo-400 font-semibold hover:text-indigo-300 hover:underline cursor-pointer transition-colors duration-150">
             Sign In
           </Link>
         </div>

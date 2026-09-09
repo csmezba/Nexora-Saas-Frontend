@@ -20,8 +20,6 @@ import {
 export default function Topbar() {
   const pathname = usePathname();
   const params = useParams();
-  const orgSlug = (params?.organizationSlug as string) || 'acme';
-
   const { toggleSidebar, setCommandPaletteOpen } = useAppStore();
   const { user } = useAuthStore();
 
@@ -44,17 +42,21 @@ export default function Topbar() {
       <div className="flex items-center gap-3">
         <button
           onClick={toggleSidebar}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors md:hidden"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 cursor-pointer transition-all duration-200 active:scale-95 md:hidden"
         >
           <Menu className="w-5 h-5" />
         </button>
 
         <div className="flex items-center gap-2 text-xs font-mono text-slate-400">
-          <span className="font-semibold text-slate-200">/{orgSlug}</span>
-          <span>/</span>
-          <span className="font-bold text-indigo-400 uppercase tracking-wider text-[11px]">
-            {sectionName}
-          </span>
+          <span className="text-slate-400 font-semibold">/dashboard</span>
+          {sectionName !== 'dashboard' && (
+            <>
+              <span className="text-slate-600">/</span>
+              <span className="font-bold text-indigo-400 uppercase tracking-wider text-[11px]">
+                {sectionName}
+              </span>
+            </>
+          )}
         </div>
       </div>
 
@@ -72,7 +74,7 @@ export default function Topbar() {
         {/* Global Search Button */}
         <button
           onClick={() => setCommandPaletteOpen(true)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-slate-300 text-xs font-sans transition-all"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700/80 hover:border-slate-600 hover:text-white border border-slate-700 text-slate-300 text-xs font-sans cursor-pointer transition-all duration-200 active:scale-[0.98]"
         >
           <Search className="w-3.5 h-3.5 text-slate-400" />
           <span className="hidden sm:inline-block">Search workspace</span>
@@ -85,7 +87,7 @@ export default function Topbar() {
         <div className="relative">
           <button
             onClick={() => setNotificationsOpen(!notificationsOpen)}
-            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors relative"
+            className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95 relative"
           >
             <Bell className="w-4 h-4" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-500"></span>
@@ -101,7 +103,7 @@ export default function Topbar() {
                 {notifications.map((n) => (
                   <div
                     key={n.id}
-                    className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-xs font-sans space-y-0.5 cursor-pointer"
+                    className="p-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 text-xs font-sans space-y-0.5 cursor-pointer transition-all duration-150 hover:translate-x-1"
                   >
                     <p className="font-semibold text-slate-200 text-[11px]">{n.title}</p>
                     <p className="text-[10px] text-slate-400 font-mono">{n.time}</p>

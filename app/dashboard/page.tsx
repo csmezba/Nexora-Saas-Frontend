@@ -140,11 +140,11 @@ export default function DashboardPage() {
           return (
             <div
               key={m.title}
-              className={`p-4 rounded-xl border ${m.bg} shadow-sm space-y-2 hover:scale-[1.01] transition-transform`}
+              className={`p-4 rounded-xl border ${m.bg} shadow-sm space-y-2 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-md hover:border-indigo-500/40`}
             >
               <div className="flex justify-between items-center">
                 <span className="text-xs font-semibold text-slate-300">{m.title}</span>
-                <Icon className={`w-4 h-4 ${m.color}`} />
+                <Icon className={`w-4 h-4 ${m.color} transition-transform duration-200 group-hover:scale-110`} />
               </div>
               <p className="text-2xl font-bold text-slate-100 font-mono">{m.value}</p>
               <p className="text-[11px] text-slate-400 font-mono flex items-center gap-1">
@@ -177,7 +177,7 @@ export default function DashboardPage() {
             ].map((act, i) => (
               <div
                 key={i}
-                className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-lg flex items-center justify-between text-xs font-sans hover:border-slate-700 transition-colors"
+                className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-lg flex items-center justify-between text-xs font-sans cursor-pointer transition-all duration-200 hover:border-slate-700 hover:bg-slate-900/80 hover:translate-x-1"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-indigo-500"></div>

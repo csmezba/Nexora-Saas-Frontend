@@ -155,7 +155,7 @@ export default function ProjectsPage() {
 
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg cursor-pointer transition-all duration-200 active:scale-95 shadow-sm"
         >
           <Plus className="w-4 h-4" />
           <span>New Project</span>
@@ -180,10 +180,10 @@ export default function ProjectsPage() {
             <button
               key={s}
               onClick={() => setFilterStatus(s)}
-              className={`px-3 py-1.5 rounded-lg border transition-colors ${
+              className={`px-3 py-1.5 rounded-lg border cursor-pointer transition-all duration-200 active:scale-95 ${
                 filterStatus === s
                   ? 'bg-indigo-600 text-white font-bold border-indigo-500'
-                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800'
+                  : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800 hover:text-slate-200'
               }`}
             >
               {s}
@@ -195,14 +195,13 @@ export default function ProjectsPage() {
       {/* Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
         {filteredProjects.map((p) => (
-          <Link
+          <div
             key={p.id}
-            href={`/${orgSlug}/projects/${p.slug}`}
-            className="p-5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl transition-all shadow-sm space-y-4 hover:scale-[1.01] group"
+            className="p-5 bg-slate-900 border border-slate-800 hover:border-indigo-500/40 rounded-xl cursor-pointer transition-all duration-200 shadow-sm space-y-4 hover:scale-[1.01] hover:shadow-lg group"
           >
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-950/60 border border-indigo-800/40 text-indigo-400 font-bold text-sm flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-indigo-950/60 border border-indigo-800/40 text-indigo-400 font-bold text-sm flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all duration-200 group-hover:scale-105">
                   {p.name.charAt(0)}
                 </div>
                 <div>
@@ -252,7 +251,7 @@ export default function ProjectsPage() {
                 <ChevronRight className="w-4 h-4 text-slate-500 group-hover:translate-x-1 transition-transform ml-1" />
               </div>
             </div>
-          </Link>
+          </div>
         ))}
       </div>
 
@@ -292,13 +291,13 @@ export default function ProjectsPage() {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg"
+                  className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 hover:text-white text-slate-300 text-xs font-medium rounded-lg cursor-pointer transition-all duration-200 active:scale-[0.98]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg"
+                  className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg cursor-pointer transition-all duration-200 active:scale-[0.98]"
                 >
                   Create Project
                 </button>

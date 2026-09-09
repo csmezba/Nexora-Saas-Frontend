@@ -187,10 +187,10 @@ export default function TasksPage() {
           <div className="flex items-center p-1 rounded-lg bg-slate-950 border border-slate-800 text-xs">
             <button
               onClick={() => setViewMode('kanban')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md cursor-pointer transition-all duration-200 active:scale-95 ${
                 viewMode === 'kanban'
-                  ? 'bg-indigo-600 text-white font-semibold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-indigo-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
               }`}
             >
               <Kanban className="w-3.5 h-3.5" />
@@ -198,10 +198,10 @@ export default function TasksPage() {
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-md cursor-pointer transition-all duration-200 active:scale-95 ${
                 viewMode === 'list'
-                  ? 'bg-indigo-600 text-white font-semibold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-indigo-600 text-white font-semibold shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
               }`}
             >
               <List className="w-3.5 h-3.5" />
@@ -211,7 +211,7 @@ export default function TasksPage() {
 
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg cursor-pointer transition-all duration-200 active:scale-95 shadow-sm"
           >
             <Plus className="w-4 h-4" />
             <span>Create Task</span>
@@ -243,10 +243,10 @@ export default function TasksPage() {
                     <div
                       key={task.id}
                       onClick={() => setSelectedTask(task)}
-                      className="p-3.5 bg-slate-900 hover:bg-slate-800/90 border border-slate-800 rounded-lg cursor-pointer transition-all shadow-sm hover:border-slate-700 space-y-2.5"
+                      className="p-3.5 bg-slate-900 hover:bg-slate-800/90 border border-slate-800 rounded-lg cursor-pointer transition-all duration-200 shadow-sm hover:border-indigo-500/40 hover:scale-[1.02] hover:shadow-md space-y-2.5 group"
                     >
                       <div className="flex justify-between items-start">
-                        <span className="text-[10px] font-mono text-slate-500 font-bold">
+                        <span className="text-[10px] font-mono text-slate-500 font-bold group-hover:text-indigo-400 transition-colors">
                           {task.id}
                         </span>
                         <span

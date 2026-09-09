@@ -40,7 +40,7 @@ export default function LoginPage() {
         user: auth.user,
       });
       queryClient.invalidateQueries();
-      router.push('/acme/dashboard');
+      router.push('/dashboard');
     },
     onError: (err: any) => {
       setErrorMsg(err.message);
@@ -107,7 +107,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loginMutation.isPending}
-            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs cursor-pointer transition-all duration-200 hover:shadow-lg hover:shadow-indigo-600/20 active:scale-[0.98] shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <span>{loginMutation.isPending ? 'Authenticating...' : 'Sign In'}</span>
             <ArrowRight className="w-4 h-4" />
@@ -116,7 +116,7 @@ export default function LoginPage() {
 
         <div className="pt-2 text-center text-xs text-slate-400">
           Don't have an account?{' '}
-          <Link href="/register" className="text-indigo-400 font-semibold hover:underline">
+          <Link href="/register" className="text-indigo-400 font-semibold hover:text-indigo-300 hover:underline cursor-pointer transition-colors duration-150">
             Register Organization
           </Link>
         </div>

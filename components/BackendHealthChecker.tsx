@@ -69,7 +69,7 @@ export default function BackendHealthChecker() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all font-medium border border-slate-700 text-[11px]"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 hover:text-white text-slate-300 cursor-pointer transition-all duration-200 active:scale-95 font-medium border border-slate-700 text-[11px]"
           >
             <Settings2 className="w-3.5 h-3.5" />
             <span>Endpoint Config</span>
@@ -78,7 +78,7 @@ export default function BackendHealthChecker() {
           <button
             onClick={runCheck}
             disabled={status === 'checking'}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white transition-all font-medium text-[11px] disabled:opacity-50"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer transition-all duration-200 active:scale-95 font-medium text-[11px] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${status === 'checking' ? 'animate-spin' : ''}`} />
             <span>Re-check</span>
@@ -88,7 +88,7 @@ export default function BackendHealthChecker() {
 
       {/* Endpoint Settings Drawer */}
       {showSettings && (
-        <div className="max-w-7xl mx-auto mt-3 p-3 bg-slate-800/90 border border-slate-700 rounded-lg shadow-xl">
+        <div className="max-w-7xl mx-auto mt-3 p-3 bg-slate-800/90 border border-slate-700 rounded-lg shadow-xl animate-in fade-in duration-150">
           <form onSubmit={handleUpdateUrl} className="flex flex-wrap items-center gap-3">
             <Server className="w-4 h-4 text-indigo-400" />
             <span className="font-medium text-slate-200">GraphQL Server URL:</span>
@@ -97,11 +97,11 @@ export default function BackendHealthChecker() {
               value={inputUrl}
               onChange={(e) => setInputUrl(e.target.value)}
               placeholder="http://localhost:8000/graphql"
-              className="flex-1 min-w-[280px] px-3 py-1.5 bg-slate-900 border border-slate-700 rounded text-slate-100 font-mono text-xs focus:outline-none focus:border-indigo-500"
+              className="flex-1 min-w-[280px] px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-slate-100 font-mono text-xs focus:outline-none focus:border-indigo-500"
             />
             <button
               type="submit"
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded font-medium text-xs transition-colors"
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium text-xs cursor-pointer transition-all duration-200 active:scale-95 shadow-sm"
             >
               Save Endpoint
             </button>

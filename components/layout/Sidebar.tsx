@@ -39,39 +39,39 @@ export default function Sidebar() {
     {
       group: 'Workspace',
       items: [
-        { label: 'Dashboard', path: `/${orgSlug}/dashboard`, icon: LayoutDashboard },
+        { label: 'Dashboard', path: `/dashboard`, icon: LayoutDashboard },
       ],
     },
     {
-      group: 'Work',
+      group: 'Productivity',
       items: [
-        { label: 'Projects', path: `/${orgSlug}/projects`, icon: FolderKanban },
-        { label: 'Tasks & Kanban', path: `/${orgSlug}/tasks`, icon: CheckSquare },
-        { label: 'Teams & Workload', path: `/${orgSlug}/teams`, icon: Users },
+        { label: 'Projects', path: `/dashboard/projects`, icon: FolderKanban },
+        { label: 'Tasks & Kanban', path: `/dashboard/tasks`, icon: CheckSquare },
+        { label: 'Teams & Workload', path: `/dashboard/teams`, icon: Users },
       ],
     },
     {
-      group: 'Customers',
+      group: 'CRM & Support',
       items: [
-        { label: 'Customers CRM', path: `/${orgSlug}/customers`, icon: Building2 },
-        { label: 'Support Inbox', path: `/${orgSlug}/inbox`, icon: Inbox },
-        { label: 'Support Tickets', path: `/${orgSlug}/tickets`, icon: Ticket },
+        { label: 'Customers CRM', path: `/dashboard/customers`, icon: Building2 },
+        { label: 'Support Inbox', path: `/dashboard/inbox`, icon: Inbox },
+        { label: 'Support Tickets', path: `/dashboard/tickets`, icon: Ticket },
       ],
     },
     {
       group: 'Knowledge & AI',
       items: [
-        { label: 'Knowledge Base', path: `/${orgSlug}/knowledge`, icon: BookOpen },
-        { label: 'AI Workspace', path: `/${orgSlug}/ai`, icon: Sparkles, badge: 'AI' },
+        { label: 'Knowledge Base', path: `/dashboard/knowledge`, icon: BookOpen },
+        { label: 'AI Workspace', path: `/dashboard/ai`, icon: Sparkles, badge: 'AI' },
       ],
     },
     {
-      group: 'Insights & System',
+      group: 'Administration',
       items: [
-        { label: 'Analytics', path: `/${orgSlug}/analytics`, icon: BarChart3 },
-        { label: 'Integrations', path: `/${orgSlug}/integrations`, icon: SlidersHorizontal },
-        { label: 'Billing & Plans', path: `/${orgSlug}/billing`, icon: CreditCard },
-        { label: 'Settings', path: `/${orgSlug}/settings`, icon: Settings },
+        { label: 'Analytics', path: `/dashboard/analytics`, icon: BarChart3 },
+        { label: 'Integrations', path: `/dashboard/integrations`, icon: SlidersHorizontal },
+        { label: 'Billing & Plans', path: `/dashboard/billing`, icon: CreditCard },
+        { label: 'Settings', path: `/dashboard/settings`, icon: Settings },
       ],
     },
   ];
@@ -89,7 +89,7 @@ export default function Sidebar() {
         {/* Global Command Palette Trigger */}
         <button
           onClick={() => setCommandPaletteOpen(true)}
-          className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-mono transition-colors"
+          className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg bg-slate-950/60 border border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700 cursor-pointer text-xs font-mono transition-all duration-200 hover:bg-slate-900"
         >
           <div className="flex items-center gap-2">
             <Command className="w-3.5 h-3.5 text-slate-400" />
@@ -110,20 +110,23 @@ export default function Sidebar() {
 
               {group.items.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.path || pathname.startsWith(item.path + '/');
+                const isActive =
+                  item.path === '/dashboard'
+                    ? pathname === '/dashboard'
+                    : pathname === item.path || pathname.startsWith(item.path + '/');
                 return (
                   <Link
                     key={item.path}
                     href={item.path}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all duration-200 hover:translate-x-0.5 active:scale-[0.98] ${
                       isActive
-                        ? 'bg-indigo-600/20 text-indigo-300 font-semibold border border-indigo-500/30'
+                        ? 'bg-indigo-600/20 text-indigo-300 font-semibold border border-indigo-500/30 shadow-sm'
                         : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
                       <Icon
-                        className={`w-4 h-4 ${
+                        className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${
                           isActive ? 'text-indigo-400' : 'text-slate-400'
                         }`}
                       />
@@ -158,7 +161,7 @@ export default function Sidebar() {
 
           <button
             onClick={toggleTheme}
-            className="p-1.5 text-slate-400 hover:text-slate-200 rounded hover:bg-slate-800 transition-colors"
+            className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 cursor-pointer transition-all duration-200 hover:scale-110 active:scale-95"
             title="Toggle theme"
           >
             {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
@@ -168,7 +171,7 @@ export default function Sidebar() {
         {accessToken && (
           <button
             onClick={() => logout()}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-rose-950/50 hover:border-rose-800/60 border border-slate-700 text-slate-400 hover:text-rose-300 text-xs font-medium transition-all"
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-rose-950/50 hover:border-rose-800/60 border border-slate-700 text-slate-400 hover:text-rose-300 text-xs font-medium cursor-pointer transition-all duration-200 active:scale-[0.98]"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Sign Out</span>

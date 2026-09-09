@@ -55,24 +55,24 @@ export default function TenantSwitcher() {
       setShowCreateModal(false);
       setNewOrgName('');
       setNewOrgSlug('');
-      router.push(`/${created.slug}/dashboard`);
+      router.push(`/dashboard`);
     },
   });
 
   const handleSelectOrg = (org: any) => {
     setSelectedOrg(org.pubId, org.slug);
     setOpen(false);
-    router.push(`/${org.slug}/dashboard`);
+    router.push(`/dashboard`);
   };
 
   return (
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-2.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 border border-slate-700 text-slate-100 transition-all font-sans text-xs"
+        className="w-full flex items-center justify-between p-2.5 rounded-lg bg-slate-800/80 hover:bg-slate-800 hover:border-slate-600 border border-slate-700 text-slate-100 cursor-pointer transition-all duration-200 active:scale-[0.99] font-sans text-xs shadow-sm"
       >
         <div className="flex items-center gap-2.5 overflow-hidden">
-          <div className="w-7 h-7 rounded-md bg-indigo-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-sm">
+          <div className="w-7 h-7 rounded-md bg-indigo-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-sm transition-transform duration-200 group-hover:scale-105">
             {activeOrg.name.charAt(0).toUpperCase()}
           </div>
           <div className="text-left overflow-hidden">
@@ -80,12 +80,12 @@ export default function TenantSwitcher() {
             <p className="text-[10px] font-mono text-slate-400 truncate">/{activeOrg.slug}</p>
           </div>
         </div>
-        <ChevronDown className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Dropdown Menu */}
       {open && (
-        <div className="absolute left-0 top-full mt-1.5 w-full bg-slate-900 border border-slate-800 rounded-xl shadow-xl z-50 p-1.5 font-sans animate-in fade-in duration-100">
+        <div className="absolute left-0 top-full mt-1.5 w-full bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 p-1.5 font-sans animate-in fade-in duration-150">
           <div className="px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider text-slate-500 font-mono">
             Switch Organization
           </div>
@@ -98,9 +98,9 @@ export default function TenantSwitcher() {
                   <button
                     key={org.pubId || org.slug}
                     onClick={() => handleSelectOrg(org)}
-                    className={`w-full flex items-center justify-between p-2 rounded-lg text-xs font-medium transition-colors ${
+                    className={`w-full flex items-center justify-between p-2 rounded-lg text-xs font-medium cursor-pointer transition-all duration-150 hover:translate-x-0.5 ${
                       isSelected
-                        ? 'bg-indigo-600/20 text-indigo-300 font-bold'
+                        ? 'bg-indigo-600/20 text-indigo-300 font-bold border border-indigo-500/20'
                         : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                     }`}
                   >
@@ -117,7 +117,7 @@ export default function TenantSwitcher() {
                 onClick={() =>
                   handleSelectOrg({ name: 'Acme Corp', slug: 'acme', pubId: 'org_acme' })
                 }
-                className="w-full text-left p-2 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800"
+                className="w-full text-left p-2 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800 cursor-pointer transition-all duration-150"
               >
                 Acme Corporation (/acme)
               </button>
@@ -130,7 +130,7 @@ export default function TenantSwitcher() {
                 setOpen(false);
                 setShowCreateModal(true);
               }}
-              className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold text-indigo-400 hover:bg-indigo-950/40 hover:text-indigo-300 transition-colors"
+              className="w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold text-indigo-400 hover:bg-indigo-950/40 hover:text-indigo-300 cursor-pointer transition-all duration-150 active:scale-[0.98]"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Create Organization</span>
@@ -186,14 +186,14 @@ export default function TenantSwitcher() {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition-colors"
+                  className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 hover:text-white text-slate-300 text-xs font-medium rounded-lg cursor-pointer transition-all duration-200 active:scale-[0.98]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={createOrgMutation.isPending}
-                  className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
+                  className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg cursor-pointer transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {createOrgMutation.isPending ? 'Creating...' : 'Create Workspace'}
                 </button>

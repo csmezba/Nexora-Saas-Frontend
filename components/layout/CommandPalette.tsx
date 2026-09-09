@@ -25,7 +25,6 @@ import {
 export default function CommandPalette() {
   const router = useRouter();
   const params = useParams();
-  const orgSlug = (params?.organizationSlug as string) || 'acme';
 
   const { commandPaletteOpen, setCommandPaletteOpen } = useAppStore();
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,7 +47,8 @@ export default function CommandPalette() {
   if (!commandPaletteOpen) return null;
 
   const navigateTo = (path: string) => {
-    router.push(`/${orgSlug}/${path}`);
+    const fullPath = path === 'dashboard' ? '/dashboard' : `/dashboard/${path}`;
+    router.push(fullPath);
     setCommandPaletteOpen(false);
     setSearchTerm('');
   };
@@ -89,7 +89,7 @@ export default function CommandPalette() {
           />
           <button
             onClick={() => setCommandPaletteOpen(false)}
-            className="p-1 text-slate-400 hover:text-slate-200 rounded"
+            className="p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95"
           >
             <X className="w-4 h-4" />
           </button>
@@ -112,14 +112,14 @@ export default function CommandPalette() {
                 <button
                   key={item.path}
                   onClick={() => navigateTo(item.path)}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium hover:bg-slate-800 text-slate-300 hover:text-white transition-colors group"
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium hover:bg-slate-800 text-slate-300 hover:text-white cursor-pointer transition-all duration-150 hover:translate-x-1 active:scale-[0.99] group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <Icon className="w-4 h-4 text-slate-400 group-hover:text-indigo-400" />
-                    <span>{item.title}</span>
+                    <Icon className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transition-transform duration-200 group-hover:scale-110" />
+                    <span className="group-hover:translate-x-0.5 transition-transform duration-150">{item.title}</span>
                   </div>
                   <span className="text-[10px] font-mono text-slate-500 group-hover:text-slate-400">
-                    /{orgSlug}/{item.path}
+                    {item.path === 'dashboard' ? '/dashboard' : `/dashboard/${item.path}`}
                   </span>
                 </button>
               );
