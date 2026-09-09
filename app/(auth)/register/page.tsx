@@ -67,7 +67,7 @@ export default function RegisterPage() {
     },
     onSuccess: (targetSlug) => {
       queryClient.invalidateQueries();
-      router.push(`/${targetSlug}/dashboard`);
+      router.push(`/dashboard`);
     },
     onError: (err: any) => {
       setErrorMsg(err.message);
@@ -149,39 +149,11 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div className="pt-2 border-t border-slate-800 space-y-3">
-            <div>
-              <label className="block font-medium text-indigo-300 mb-1">Organization Name</label>
-              <input
-                type="text"
-                value={orgName}
-                onChange={(e) => {
-                  setOrgName(e.target.value);
-                  setOrgSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'));
-                }}
-                placeholder="Acme Corporation"
-                className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-
-            <div>
-              <label className="block font-medium text-slate-300 mb-1">Workspace URL Slug</label>
-              <input
-                type="text"
-                value={orgSlug}
-                onChange={(e) => setOrgSlug(e.target.value)}
-                placeholder="acme-corp"
-                className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl font-mono text-slate-100 focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-          </div>
-
           <button
             type="submit"
-            disabled={registerMutation.isPending}
             className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-xs transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
-          >
-            <span>{registerMutation.isPending ? 'Registering Workspace...' : 'Create Account & Workspace'}</span>
+          > 
+            <span>{'Create Account'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
