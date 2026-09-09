@@ -1,161 +1,513 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { graphqlRequest } from '@/lib/graphql-client';
+import {
+  ORGANIZATION_PROJECTS_QUERY,
+  PROJECT_TASKS_QUERY,
+  CREATE_TASK_MUTATION,
+  UPDATE_TASK_MUTATION,
+  UPDATE_TASK_POSITION_MUTATION,
+  DELETE_TASK_MUTATION,
+  ASSIGN_TASK_MUTATION,
+  UNASSIGN_TASK_MUTATION,
+  CREATE_PROJECT_MUTATION,
+  MY_ORGANIZATIONS_QUERY,
+  ORGANIZATION_MEMBERS_QUERY,
+} from '@/graphql/documents';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useAppStore } from '@/store/useAppStore';
 import {
   CheckSquare,
   Plus,
-  Filter,
   Search,
   Kanban,
   List,
   Calendar as CalendarIcon,
   Sparkles,
   User,
+  UserPlus,
+  Users,
   Clock,
   MessageSquare,
-  Paperclip,
   CheckCircle2,
   AlertCircle,
   X,
-  ChevronRight,
+  FolderKanban,
+  Loader2,
+  Trash2,
+  Edit2,
+  Save,
+  Check,
+  Building2,
+  ChevronDown,
 } from 'lucide-react';
 
-export interface TaskCardItem {
-  id: string;
-  title: string;
-  description: string;
-  status: 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE';
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-  assignee: string;
-  project: string;
-  dueDate: string;
-  commentsCount: number;
-}
+export type TaskStatusType = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE';
+export type TaskPriorityType = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
-const INITIAL_TASKS: TaskCardItem[] = [
-  {
-    id: 'TASK-101',
-    title: 'Configure GraphQL JWT auth guards & refresh token strategy',
-    description: 'Ensure NestJS backend protects organization & team queries with JwtAuthGuard.',
-    status: 'IN_PROGRESS',
-    priority: 'HIGH',
-    assignee: 'Alex Rivera',
-    project: 'Backend Core',
-    dueDate: 'Sep 12',
-    commentsCount: 4,
-  },
-  {
-    id: 'TASK-102',
-    title: 'Build multi-tenant URL routing layout for Next.js App Router',
-    description: 'Structure /[organizationSlug]/... routes with persistent AppShell & Sidebar.',
-    status: 'DONE',
-    priority: 'URGENT',
-    assignee: 'John Doe',
-    project: 'Frontend Platform',
-    dueDate: 'Sep 10',
-    commentsCount: 6,
-  },
-  {
-    id: 'TASK-103',
-    title: 'Implement 3-column enterprise support inbox UI',
-    description: 'Create Intercom-like conversation thread and customer profile side panel.',
-    status: 'IN_REVIEW',
-    priority: 'MEDIUM',
-    assignee: 'Sarah Connor',
-    project: 'Support Workspace',
-    dueDate: 'Sep 15',
-    commentsCount: 2,
-  },
-  {
-    id: 'TASK-104',
-    title: 'Design streaming AI assistant prompt templates & citations',
-    description: 'Support quick prompt chips and knowledge base doc grounding in AI chat.',
-    status: 'TODO',
-    priority: 'HIGH',
-    assignee: 'Elena Rostova',
-    project: 'AI Workspace',
-    dueDate: 'Sep 18',
-    commentsCount: 1,
-  },
-  {
-    id: 'TASK-105',
-    title: 'Setup Recharts velocity & token consumption analytics',
-    description: 'Render interactive area and bar charts for team productivity insights.',
-    status: 'BACKLOG',
-    priority: 'LOW',
-    assignee: 'David Kim',
-    project: 'Analytics Engine',
-    dueDate: 'Sep 22',
-    commentsCount: 0,
-  },
-];
-
-const COLUMNS: { id: TaskCardItem['status']; label: string; color: string }[] = [
-  { id: 'BACKLOG', label: 'Backlog', color: 'border-slate-700 bg-slate-900/60' },
-  { id: 'TODO', label: 'To Do', color: 'border-indigo-900/60 bg-indigo-950/20' },
-  { id: 'IN_PROGRESS', label: 'In Progress', color: 'border-amber-900/60 bg-amber-950/20' },
-  { id: 'IN_REVIEW', label: 'In Review', color: 'border-purple-900/60 bg-purple-950/20' },
-  { id: 'DONE', label: 'Done', color: 'border-emerald-900/60 bg-emerald-950/20' },
+const COLUMNS: { id: TaskStatusType; label: string; color: string; badge: string }[] = [
+  { id: 'BACKLOG', label: 'Backlog', color: 'border-slate-800 bg-slate-900/40', badge: 'bg-slate-800 text-slate-400' },
+  { id: 'TODO', label: 'To Do', color: 'border-indigo-950 bg-indigo-950/10', badge: 'bg-indigo-950/80 text-indigo-300 border border-indigo-800/80' },
+  { id: 'IN_PROGRESS', label: 'In Progress', color: 'border-amber-950 bg-amber-950/10', badge: 'bg-amber-950/80 text-amber-300 border border-amber-800/80' },
+  { id: 'IN_REVIEW', label: 'In Review', color: 'border-purple-950 bg-purple-950/10', badge: 'bg-purple-950/80 text-purple-300 border border-purple-800/80' },
+  { id: 'DONE', label: 'Done', color: 'border-emerald-950 bg-emerald-950/10', badge: 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/80' },
 ];
 
 export default function TasksPage() {
-  const { selectedOrgSlug, selectedOrgName } = useAuthStore();
-  const orgSlug = selectedOrgSlug || 'workspace';
+  const queryClient = useQueryClient();
+  const { accessToken, selectedOrgPubId, selectedOrgSlug, selectedOrgName, user } = useAuthStore();
 
-  const [tasks, setTasks] = useState<TaskCardItem[]>(INITIAL_TASKS);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTask, setSelectedTask] = useState<TaskCardItem | null>(null);
+  const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
 
-  // New task form state
+  // Drag-and-drop state
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<TaskStatusType | null>(null);
+
+  // Selected Task for Edit/View Drawer
+  const [selectedTask, setSelectedTask] = useState<any | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editStatus, setEditStatus] = useState<TaskStatusType>('TODO');
+  const [editPriority, setEditPriority] = useState<TaskPriorityType>('MEDIUM');
+  const [editDueDate, setEditDueDate] = useState('');
+
+  // Create Task state
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createColumnTarget, setCreateColumnTarget] = useState<TaskStatusType>('TODO');
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [newPriority, setNewPriority] = useState<TaskCardItem['priority']>('MEDIUM');
+  const [newPriority, setNewPriority] = useState<TaskPriorityType>('MEDIUM');
+  const [newDueDate, setNewDueDate] = useState('');
+  const [selectedAssigneePubIds, setSelectedAssigneePubIds] = useState<string[]>([]);
 
-  const moveTask = (taskId: string, newStatus: TaskCardItem['status']) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
-    );
-    if (selectedTask?.id === taskId) {
-      setSelectedTask((prev) => (prev ? { ...prev, status: newStatus } : null));
+  // Drawer Assign Member state
+  const [assignSelectPubId, setAssignSelectPubId] = useState<string>('');
+
+  // Quick Create Project Modal state (if workspace has 0 projects)
+  const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectKey, setNewProjectKey] = useState('');
+  const [newProjectDesc, setNewProjectDesc] = useState('');
+
+  const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // 1. Resolve Organization
+  const { data: myOrgs = [] } = useQuery({
+    queryKey: ['myOrganizations', accessToken],
+    queryFn: async () => {
+      if (!accessToken) return [];
+      const res = await graphqlRequest<{ myOrganizations: any[] }>(MY_ORGANIZATIONS_QUERY);
+      return res.myOrganizations || [];
+    },
+    enabled: !!accessToken,
+  });
+
+  const validOrgs = Array.isArray(myOrgs) ? myOrgs.filter((o: any) => o && typeof o === 'object') : [];
+  const activeOrg =
+    validOrgs.find(
+      (o: any) =>
+        (selectedOrgPubId && o.pubId === selectedOrgPubId) ||
+        (selectedOrgSlug && o.slug === selectedOrgSlug)
+    ) ||
+    validOrgs[0] ||
+    null;
+
+  const effectiveOrgPubId = selectedOrgPubId || activeOrg?.pubId || '';
+  const currentOrgName = activeOrg?.name?.trim() || selectedOrgName || 'Workspace';
+  const orgSlug = activeOrg?.slug?.trim() || selectedOrgSlug || 'workspace';
+
+  // 2. Fetch Projects for active organization
+  const { data: projects = [], isLoading: isProjectsLoading } = useQuery({
+    queryKey: ['organizationProjects', effectiveOrgPubId],
+    queryFn: async () => {
+      if (!effectiveOrgPubId) return [];
+      const res = await graphqlRequest<{ organizationProjects: any[] }>(
+        ORGANIZATION_PROJECTS_QUERY,
+        { organizationPubId: effectiveOrgPubId }
+      );
+      return res.organizationProjects || [];
+    },
+    enabled: !!effectiveOrgPubId && !!accessToken,
+  });
+
+  // Active Project Selection
+  const [selectedProjectPubId, setSelectedProjectPubId] = useState<string>('');
+
+  useEffect(() => {
+    if (projects.length > 0) {
+      if (!selectedProjectPubId || !projects.some((p: any) => p.pubId === selectedProjectPubId)) {
+        setSelectedProjectPubId(projects[0].pubId);
+      }
+    } else {
+      setSelectedProjectPubId('');
+    }
+  }, [projects, selectedProjectPubId]);
+
+  const activeProject = projects.find((p: any) => p.pubId === selectedProjectPubId) || projects[0] || null;
+
+  // 3. Fetch Tasks for selected project from database
+  const {
+    data: tasks = [],
+    isLoading: isTasksLoading,
+    refetch: refetchTasks,
+  } = useQuery({
+    queryKey: ['projectTasks', selectedProjectPubId],
+    queryFn: async () => {
+      if (!selectedProjectPubId) return [];
+      const res = await graphqlRequest<{ projectTasks: any[] }>(PROJECT_TASKS_QUERY, {
+        projectPubId: selectedProjectPubId,
+      });
+      return res.projectTasks || [];
+    },
+    enabled: !!selectedProjectPubId && !!accessToken,
+  });
+
+  // 4. Fetch Organization Members for task assignment
+  const { data: members = [] } = useQuery({
+    queryKey: ['organizationMembers', effectiveOrgPubId],
+    queryFn: async () => {
+      if (!effectiveOrgPubId) return [];
+      const res = await graphqlRequest<{ organizationMembers: any[] }>(
+        ORGANIZATION_MEMBERS_QUERY,
+        { organizationPubId: effectiveOrgPubId }
+      );
+      return res.organizationMembers || [];
+    },
+    enabled: !!effectiveOrgPubId && !!accessToken,
+  });
+
+  // Keep selectedTask assignees and status in sync when tasks query refetches
+  useEffect(() => {
+    if (selectedTask) {
+      const latest = tasks.find((t: any) => t.pubId === selectedTask.pubId);
+      if (latest && JSON.stringify(latest.assignees) !== JSON.stringify(selectedTask.assignees)) {
+        setSelectedTask((prev: any) => ({
+          ...prev,
+          assignees: latest.assignees,
+        }));
+      }
+    }
+  }, [tasks, selectedTask]);
+
+  // Sync selected task edit state
+  useEffect(() => {
+    if (selectedTask) {
+      setEditTitle(selectedTask.title || '');
+      setEditDesc(selectedTask.description || '');
+      setEditStatus((selectedTask.status as TaskStatusType) || 'TODO');
+      setEditPriority((selectedTask.priority as TaskPriorityType) || 'MEDIUM');
+      setEditDueDate(selectedTask.dueDate ? selectedTask.dueDate.slice(0, 10) : '');
+    }
+  }, [selectedTask]);
+
+  // 4. Mutation: Update Task Position (Drag and Drop / Column change)
+  const updateTaskPositionMutation = useMutation({
+    mutationFn: async ({
+      taskPubId,
+      status,
+      position,
+    }: {
+      taskPubId: string;
+      status: TaskStatusType;
+      position: number;
+    }) => {
+      return graphqlRequest<{ updateTaskPosition: any }>(UPDATE_TASK_POSITION_MUTATION, {
+        input: {
+          taskPubId,
+          status,
+          position,
+        },
+      });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+      if (selectedTask && selectedTask.pubId === data.updateTaskPosition.pubId) {
+        setSelectedTask((prev: any) => ({
+          ...prev,
+          status: data.updateTaskPosition.status,
+          position: data.updateTaskPosition.position,
+        }));
+      }
+    },
+    onError: (err: any) => {
+      setStatusMsg({
+        type: 'error',
+        text: err?.message || 'Failed to update task position.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+    },
+  });
+
+  // 5. Mutation: Create Task
+  const createTaskMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedProjectPubId) throw new Error('No project selected.');
+      return graphqlRequest<{ createTask: any }>(CREATE_TASK_MUTATION, {
+        input: {
+          projectPubId: selectedProjectPubId,
+          title: newTitle.trim(),
+          description: newDesc.trim() || undefined,
+          status: createColumnTarget,
+          priority: newPriority,
+          dueDate: newDueDate ? new Date(newDueDate).toISOString() : undefined,
+          position: (tasks.length + 1) * 1000.0,
+          assigneeUserPubIds: selectedAssigneePubIds.length > 0 ? selectedAssigneePubIds : undefined,
+        },
+      });
+    },
+    onSuccess: (data) => {
+      setStatusMsg({
+        type: 'success',
+        text: `Task "${data?.createTask?.title || 'Task'}" created.`,
+      });
+      setShowCreateModal(false);
+      setNewTitle('');
+      setNewDesc('');
+      setNewDueDate('');
+      setNewPriority('MEDIUM');
+      setSelectedAssigneePubIds([]);
+      queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+      queryClient.invalidateQueries({ queryKey: ['organizationProjects', effectiveOrgPubId] });
+    },
+    onError: (err: any) => {
+      setStatusMsg({
+        type: 'error',
+        text: err?.message || 'Failed to create task.',
+      });
+    },
+  });
+
+  // Assign Task Mutation
+  const assignTaskMutation = useMutation({
+    mutationFn: async ({ taskPubId, userPubId }: { taskPubId: string; userPubId: string }) => {
+      return graphqlRequest<{ assignTask: { success: boolean; message: string } }>(
+        ASSIGN_TASK_MUTATION,
+        { input: { taskPubId, userPubId } }
+      );
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+      const targetMember = members.find((m: any) => m.user?.pubId === variables.userPubId);
+      if (targetMember && selectedTask) {
+        setSelectedTask((prev: any) => {
+          if (!prev) return prev;
+          const currentAssignees = prev.assignees || [];
+          if (currentAssignees.some((a: any) => a.user?.pubId === variables.userPubId)) return prev;
+          return {
+            ...prev,
+            assignees: [...currentAssignees, { user: targetMember.user }],
+          };
+        });
+      }
+      setStatusMsg({
+        type: 'success',
+        text: data?.assignTask?.message || 'Member assigned to task.',
+      });
+      setAssignSelectPubId('');
+    },
+    onError: (err: any) => {
+      setStatusMsg({
+        type: 'error',
+        text: err?.message || 'Failed to assign member to task.',
+      });
+    },
+  });
+
+  // Unassign Task Mutation
+  const unassignTaskMutation = useMutation({
+    mutationFn: async ({ taskPubId, userPubId }: { taskPubId: string; userPubId: string }) => {
+      return graphqlRequest<{ unassignTask: { success: boolean; message: string } }>(
+        UNASSIGN_TASK_MUTATION,
+        { input: { taskPubId, userPubId } }
+      );
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+      if (selectedTask) {
+        setSelectedTask((prev: any) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            assignees: (prev.assignees || []).filter(
+              (a: any) => a.user?.pubId !== variables.userPubId
+            ),
+          };
+        });
+      }
+      setStatusMsg({
+        type: 'success',
+        text: data?.unassignTask?.message || 'Member unassigned from task.',
+      });
+    },
+    onError: (err: any) => {
+      setStatusMsg({
+        type: 'error',
+        text: err?.message || 'Failed to unassign member from task.',
+      });
+    },
+  });
+
+  // 6. Mutation: Update Task
+  const updateTaskMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedTask?.pubId) return;
+      return graphqlRequest<{ updateTask: any }>(UPDATE_TASK_MUTATION, {
+        pubId: selectedTask.pubId,
+        input: {
+          title: editTitle.trim(),
+          description: editDesc.trim() || undefined,
+          status: editStatus,
+          priority: editPriority,
+          dueDate: editDueDate ? new Date(editDueDate).toISOString() : undefined,
+        },
+      });
+    },
+    onSuccess: (data) => {
+      setStatusMsg({
+        type: 'success',
+        text: `Task "${data?.updateTask?.title || editTitle}" updated.`,
+      });
+      if (data?.updateTask) {
+        setSelectedTask((prev: any) => ({
+          ...prev,
+          ...data.updateTask,
+        }));
+      }
+      queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+    },
+    onError: (err: any) => {
+      setStatusMsg({
+        type: 'error',
+        text: err?.message || 'Failed to update task.',
+      });
+    },
+  });
+
+  // 7. Mutation: Delete Task
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (pubId: string) => {
+      return graphqlRequest<{ deleteTask: any }>(DELETE_TASK_MUTATION, { pubId });
+    },
+    onSuccess: (data) => {
+      setStatusMsg({
+        type: 'success',
+        text: data?.deleteTask?.message || 'Task deleted.',
+      });
+      setSelectedTask(null);
+      queryClient.invalidateQueries({ queryKey: ['projectTasks', selectedProjectPubId] });
+      queryClient.invalidateQueries({ queryKey: ['organizationProjects', effectiveOrgPubId] });
+    },
+    onError: (err: any) => {
+      setStatusMsg({
+        type: 'error',
+        text: err?.message || 'Failed to delete task.',
+      });
+    },
+  });
+
+  // 8. Mutation: Create Project (Fallback when workspace has 0 projects)
+  const createProjectMutation = useMutation({
+    mutationFn: async () => {
+      return graphqlRequest<{ createProject: any }>(CREATE_PROJECT_MUTATION, {
+        input: {
+          organizationPubId: effectiveOrgPubId,
+          name: newProjectName.trim(),
+          key: newProjectKey.trim().toUpperCase(),
+          description: newProjectDesc.trim() || undefined,
+        },
+      });
+    },
+    onSuccess: (data) => {
+      setStatusMsg({
+        type: 'success',
+        text: `Project "${data?.createProject?.name || 'Project'}" created.`,
+      });
+      setShowCreateProjectModal(false);
+      setNewProjectName('');
+      setNewProjectKey('');
+      setNewProjectDesc('');
+      queryClient.invalidateQueries({ queryKey: ['organizationProjects', effectiveOrgPubId] });
+      if (data?.createProject?.pubId) {
+        setSelectedProjectPubId(data.createProject.pubId);
+      }
+    },
+    onError: (err: any) => {
+      setStatusMsg({
+        type: 'error',
+        text: err?.message || 'Failed to create project.',
+      });
+    },
+  });
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, taskPubId: string) => {
+    e.dataTransfer.setData('text/plain', taskPubId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedTaskId(taskPubId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTaskId(null);
+    setDragOverColumn(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, colId: TaskStatusType) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverColumn !== colId) {
+      setDragOverColumn(colId);
     }
   };
 
-  const handleCreateTask = (e: React.FormEvent) => {
+  const handleDrop = (e: React.DragEvent, targetStatus: TaskStatusType) => {
     e.preventDefault();
-    const newTask: TaskCardItem = {
-      id: `TASK-${100 + tasks.length + 1}`,
-      title: newTitle,
-      description: newDesc,
-      status: 'TODO',
-      priority: newPriority,
-      assignee: 'Current User',
-      project: 'Main Sprint',
-      dueDate: 'Today',
-      commentsCount: 0,
-    };
-    setTasks([newTask, ...tasks]);
-    setShowCreateModal(false);
-    setNewTitle('');
-    setNewDesc('');
+    setDragOverColumn(null);
+    const taskPubId = e.dataTransfer.getData('text/plain') || draggedTaskId;
+    if (!taskPubId) return;
+
+    const task = tasks.find((t: any) => t.pubId === taskPubId);
+    if (!task) return;
+
+    if (task.status === targetStatus) return; // Same column
+
+    const tasksInTarget = tasks.filter((t: any) => t.status === targetStatus);
+    const newPosition = (tasksInTarget.length + 1) * 1000.0;
+
+    // Optimistic cache update for instant visual responsiveness
+    queryClient.setQueryData(['projectTasks', selectedProjectPubId], (old: any[]) => {
+      if (!Array.isArray(old)) return old;
+      return old.map((t) => (t.pubId === taskPubId ? { ...t, status: targetStatus, position: newPosition } : t));
+    });
+
+    // Execute backend mutation
+    updateTaskPositionMutation.mutate({
+      taskPubId,
+      status: targetStatus,
+      position: newPosition,
+    });
   };
 
-  const filteredTasks = tasks.filter((t) =>
-    t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter tasks
+  const filteredTasks = tasks.filter((t: any) => {
+    const titleMatch = t.title?.toLowerCase().includes(searchQuery.toLowerCase());
+    const descMatch = t.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const priorityMatch = priorityFilter === 'ALL' || t.priority === priorityFilter;
+    return (titleMatch || descMatch) && priorityMatch;
+  });
 
-  const getPriorityBadge = (p: TaskCardItem['priority']) => {
+  const getPriorityBadge = (p: string) => {
     switch (p) {
       case 'URGENT':
         return 'bg-rose-950 border-rose-800 text-rose-300 font-bold';
       case 'HIGH':
-        return 'bg-amber-950 border-amber-800 text-amber-300';
+        return 'bg-amber-950 border-amber-800 text-amber-300 font-semibold';
       case 'MEDIUM':
         return 'bg-indigo-950 border-indigo-800 text-indigo-300';
+      case 'LOW':
+        return 'bg-slate-800 border-slate-700 text-slate-300';
       default:
         return 'bg-slate-800 border-slate-700 text-slate-400';
     }
@@ -163,29 +515,51 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6 font-sans text-slate-100">
-      {/* Top Action Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-400">
+      {/* Top Banner & Project Selector Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-sm">
+        <div className="flex items-center gap-3.5">
+          <div className="p-2.5 rounded-xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 shadow-sm">
             <CheckSquare className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
               <span>Task Workspace & Kanban</span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                {filteredTasks.length} Tasks
+                {filteredTasks.length} {filteredTasks.length === 1 ? 'Task' : 'Tasks'}
               </span>
             </h2>
-            <p className="text-xs text-slate-400">
-              Manage sprints, backlog, and task statuses across <span className="text-slate-200">/{orgSlug}</span>
+            <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
+              <Building2 className="w-3.5 h-3.5 text-slate-500" />
+              <span>Workspace:</span>
+              <span className="text-indigo-300 font-semibold">{currentOrgName}</span>
+              <span className="text-[11px] font-mono text-slate-500">({orgSlug})</span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* View Mode Switcher */}
+        {/* Project Selector & View Mode Switcher */}
+        <div className="flex flex-wrap items-center gap-3">
+          {projects.length > 0 && (
+            <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+              <FolderKanban className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" />
+              <select
+                value={selectedProjectPubId}
+                onChange={(e) => setSelectedProjectPubId(e.target.value)}
+                className="bg-transparent text-xs text-slate-200 font-semibold focus:outline-none cursor-pointer pr-2 font-mono"
+              >
+                {projects.map((p: any) => (
+                  <option key={p.pubId} value={p.pubId} className="bg-slate-900 text-slate-200">
+                    [{p.key}] {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* View Mode */}
           <div className="flex items-center p-1 rounded-lg bg-slate-950 border border-slate-800 text-xs">
             <button
+              type="button"
               onClick={() => setViewMode('kanban')}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-md cursor-pointer transition-all duration-200 active:scale-95 ${
                 viewMode === 'kanban'
@@ -197,6 +571,7 @@ export default function TasksPage() {
               <span>Kanban</span>
             </button>
             <button
+              type="button"
               onClick={() => setViewMode('list')}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-md cursor-pointer transition-all duration-200 active:scale-95 ${
                 viewMode === 'list'
@@ -209,76 +584,276 @@ export default function TasksPage() {
             </button>
           </div>
 
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg cursor-pointer transition-all duration-200 active:scale-95 shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create Task</span>
-          </button>
+          {projects.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => {
+                setCreateColumnTarget('TODO');
+                setShowCreateModal(true);
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg cursor-pointer transition-all duration-200 active:scale-95 shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Task</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowCreateProjectModal(true)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg cursor-pointer transition-all duration-200 active:scale-95 shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create Project First</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Kanban Board View */}
-      {viewMode === 'kanban' && (
+      {/* Notifications */}
+      {statusMsg && (
+        <div
+          className={`p-3.5 rounded-xl text-xs flex items-center justify-between gap-2 border shadow-sm ${
+            statusMsg.type === 'success'
+              ? 'bg-emerald-950/60 border-emerald-800/80 text-emerald-200'
+              : 'bg-rose-950/60 border-rose-800/80 text-rose-200'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {statusMsg.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+            )}
+            <span>{statusMsg.text}</span>
+          </div>
+          <button
+            onClick={() => setStatusMsg(null)}
+            className="p-1 hover:bg-white/10 rounded cursor-pointer transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Zero Projects Empty State */}
+      {!isProjectsLoading && projects.length === 0 && (
+        <div className="p-12 text-center bg-slate-900 border border-dashed border-slate-800 rounded-2xl space-y-4">
+          <div className="w-12 h-12 rounded-xl bg-indigo-950 border border-indigo-800 text-indigo-400 flex items-center justify-center mx-auto">
+            <FolderKanban className="w-6 h-6" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1">
+            <h3 className="font-bold text-base text-slate-200">No Projects in this Workspace</h3>
+            <p className="text-xs text-slate-400">
+              Tasks belong to projects. Create your first project in <span className="text-slate-200">{currentOrgName}</span> to start creating tasks and using the Kanban board.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowCreateProjectModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold cursor-pointer transition-all shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create Project</span>
+          </button>
+        </div>
+      )}
+
+      {/* Toolbar: Search & Priority Filters */}
+      {projects.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks by title or description..."
+              className="w-full pl-9 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+
+          <div className="flex items-center gap-1.5 text-xs font-mono overflow-x-auto pb-1 max-w-full">
+            <span className="text-[11px] text-slate-500 mr-1">Priority:</span>
+            {['ALL', 'URGENT', 'HIGH', 'MEDIUM', 'LOW'].map((p) => (
+              <button
+                key={p}
+                onClick={() => setPriorityFilter(p)}
+                className={`px-3 py-1.5 rounded-lg border cursor-pointer transition-all duration-150 text-[11px] whitespace-nowrap ${
+                  priorityFilter === p
+                    ? 'bg-indigo-600 text-white font-bold border-indigo-500 shadow-sm'
+                    : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800 hover:text-slate-200'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Loading Skeleton */}
+      {isTasksLoading && projects.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-3 animate-pulse h-96">
+              <div className="h-4 w-24 bg-slate-800 rounded" />
+              <div className="h-20 bg-slate-950/60 rounded-lg" />
+              <div className="h-20 bg-slate-950/60 rounded-lg" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* KANBAN BOARD VIEW WITH DRAG & DROP */}
+      {!isTasksLoading && projects.length > 0 && viewMode === 'kanban' && (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 overflow-x-auto pb-4">
           {COLUMNS.map((col) => {
-            const colTasks = filteredTasks.filter((t) => t.status === col.id);
+            const colTasks = filteredTasks
+              .filter((t: any) => t.status === col.id)
+              .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+
+            const isDropTarget = dragOverColumn === col.id;
+
             return (
               <div
                 key={col.id}
-                className={`p-3 rounded-xl border ${col.color} flex flex-col h-[600px] shadow-sm`}
+                onDragOver={(e) => handleDragOver(e, col.id)}
+                onDragLeave={() => setDragOverColumn(null)}
+                onDrop={(e) => handleDrop(e, col.id)}
+                className={`p-3 rounded-xl border transition-all duration-200 flex flex-col min-h-[640px] shadow-sm ${
+                  isDropTarget
+                    ? 'border-indigo-500 ring-2 ring-indigo-500/50 bg-indigo-950/20'
+                    : col.color
+                }`}
               >
-                <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-800">
-                  <span className="font-bold text-xs text-slate-200 uppercase tracking-wider font-mono">
-                    {col.label}
-                  </span>
-                  <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-900 text-slate-400 font-semibold border border-slate-800">
-                    {colTasks.length}
-                  </span>
+                {/* Column Header */}
+                <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-800/80">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs text-slate-200 uppercase tracking-wider font-mono">
+                      {col.label}
+                    </span>
+                    <span className={`text-[10px] font-mono px-2 py-0.2 rounded-full font-bold ${col.badge}`}>
+                      {colTasks.length}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreateColumnTarget(col.id);
+                      setShowCreateModal(true);
+                    }}
+                    title={`Add task to ${col.label}`}
+                    className="p-1 text-slate-500 hover:text-slate-200 hover:bg-slate-800 rounded cursor-pointer transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-                  {colTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      onClick={() => setSelectedTask(task)}
-                      className="p-3.5 bg-slate-900 hover:bg-slate-800/90 border border-slate-800 rounded-lg cursor-pointer transition-all duration-200 shadow-sm hover:border-indigo-500/40 hover:scale-[1.02] hover:shadow-md space-y-2.5 group"
-                    >
-                      <div className="flex justify-between items-start">
-                        <span className="text-[10px] font-mono text-slate-500 font-bold group-hover:text-indigo-400 transition-colors">
-                          {task.id}
-                        </span>
-                        <span
-                          className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${getPriorityBadge(
-                            task.priority
-                          )}`}
-                        >
-                          {task.priority}
-                        </span>
-                      </div>
-
-                      <h4 className="font-semibold text-xs text-slate-100 line-clamp-2 leading-snug">
-                        {task.title}
-                      </h4>
-
-                      <p className="text-[11px] text-slate-400 line-clamp-2 font-sans">
-                        {task.description}
-                      </p>
-
-                      <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-mono">
-                        <div className="flex items-center gap-1.5">
-                          <User className="w-3 h-3 text-slate-500" />
-                          <span>{task.assignee}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="flex items-center gap-0.5">
-                            <MessageSquare className="w-3 h-3" /> {task.commentsCount}
-                          </span>
-                        </div>
-                      </div>
+                {/* Drop Area & Task List */}
+                <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+                  {colTasks.length === 0 ? (
+                    <div className="h-32 border border-dashed border-slate-800/60 rounded-lg flex flex-col items-center justify-center p-3 text-center text-slate-500 text-[11px] select-none">
+                      <span>Drag tasks here</span>
+                      <span className="text-[10px] text-slate-600 mt-0.5">or click + to add</span>
                     </div>
-                  ))}
+                  ) : (
+                    colTasks.map((task: any) => {
+                      const isBeingDragged = draggedTaskId === task.pubId;
+                      const taskKey = task.project?.key
+                        ? `${task.project.key}-${task.pubId.slice(-4).toUpperCase()}`
+                        : task.pubId.slice(0, 8);
+
+                      return (
+                        <div
+                          key={task.pubId}
+                          draggable={true}
+                          onDragStart={(e) => handleDragStart(e, task.pubId)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => setSelectedTask(task)}
+                          className={`p-3.5 bg-slate-900 border rounded-xl cursor-grab active:cursor-grabbing transition-all duration-150 shadow-sm space-y-2.5 group hover:border-indigo-500/50 hover:scale-[1.01] hover:shadow-md ${
+                            isBeingDragged
+                              ? 'opacity-40 border-indigo-500 scale-95'
+                              : 'border-slate-800/80 hover:bg-slate-850'
+                          }`}
+                        >
+                          {/* Task Card Header */}
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-mono font-bold text-indigo-400 group-hover:text-indigo-300 transition-colors">
+                              {taskKey}
+                            </span>
+                            <span
+                              className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${getPriorityBadge(
+                                task.priority
+                              )}`}
+                            >
+                              {task.priority}
+                            </span>
+                          </div>
+
+                          {/* Task Title */}
+                          <h4 className="font-semibold text-xs text-slate-100 line-clamp-2 leading-snug">
+                            {task.title}
+                          </h4>
+
+                          {/* Task Description */}
+                          {task.description && (
+                            <p className="text-[11px] text-slate-400 line-clamp-2 font-sans leading-relaxed">
+                              {task.description}
+                            </p>
+                          )}
+
+                          {/* Task Card Footer */}
+                          <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                            {/* Assignee Avatars */}
+                            <div className="flex items-center gap-1 min-w-0">
+                              {task.assignees && task.assignees.length > 0 ? (
+                                <div className="flex items-center -space-x-1.5">
+                                  {task.assignees.slice(0, 3).map((a: any, idx: number) => {
+                                    const u = a.user;
+                                    const initials = (u?.fullName || u?.email || 'U').slice(0, 2).toUpperCase();
+                                    return (
+                                      <div
+                                        key={u?.pubId || a.pubId || idx}
+                                        title={`Assigned: ${u?.fullName || u?.email}`}
+                                        className="w-5 h-5 rounded-full bg-indigo-600 border border-slate-900 text-white font-bold text-[9px] flex items-center justify-center shadow-sm"
+                                      >
+                                        {initials}
+                                      </div>
+                                    );
+                                  })}
+                                  {task.assignees.length > 3 && (
+                                    <div
+                                      title={`${task.assignees.length - 3} more assignees`}
+                                      className="w-5 h-5 rounded-full bg-slate-800 border border-slate-900 text-slate-300 font-bold text-[8px] flex items-center justify-center shadow-sm"
+                                    >
+                                      +{task.assignees.length - 3}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-slate-500 flex items-center gap-1 italic">
+                                  <UserPlus className="w-3 h-3 text-slate-600" />
+                                  <span>Unassigned</span>
+                                </span>
+                              )}
+                            </div>
+
+                            {task.dueDate ? (
+                              <div className="flex items-center gap-1 text-slate-500 ml-auto">
+                                <Clock className="w-3 h-3" />
+                                <span>{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 text-slate-600 text-[9px] ml-auto">
+                                <span>{task.creator?.fullName?.split(' ')[0] || 'Member'}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             );
@@ -286,176 +861,659 @@ export default function TasksPage() {
         </div>
       )}
 
-      {/* List View */}
-      {viewMode === 'list' && (
+      {/* LIST VIEW */}
+      {!isTasksLoading && projects.length > 0 && viewMode === 'list' && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-left text-xs font-sans">
             <thead className="bg-slate-950 text-slate-400 font-mono border-b border-slate-800 uppercase text-[10px]">
               <tr>
-                <th className="p-3">ID</th>
-                <th className="p-3">Task Title</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Priority</th>
-                <th className="p-3">Assignee</th>
-                <th className="p-3">Project</th>
-                <th className="p-3">Due Date</th>
+                <th className="p-3.5">Key</th>
+                <th className="p-3.5">Title</th>
+                <th className="p-3.5">Status</th>
+                <th className="p-3.5">Priority</th>
+                <th className="p-3.5">Assignees</th>
+                <th className="p-3.5">Project</th>
+                <th className="p-3.5">Creator</th>
+                <th className="p-3.5">Due Date</th>
+                <th className="p-3.5 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 font-mono">
-              {filteredTasks.map((t) => (
-                <tr
-                  key={t.id}
-                  onClick={() => setSelectedTask(t)}
-                  className="hover:bg-slate-800/60 cursor-pointer transition-colors"
-                >
-                  <td className="p-3 text-indigo-400 font-bold">{t.id}</td>
-                  <td className="p-3 font-semibold text-slate-100 font-sans">{t.title}</td>
-                  <td className="p-3">
-                    <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">
-                      {t.status}
-                    </span>
+              {filteredTasks.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="p-8 text-center text-slate-500 text-xs font-sans">
+                    No tasks found matching your filters.
                   </td>
-                  <td className="p-3">
-                    <span className={`px-1.5 py-0.5 rounded border text-[9px] ${getPriorityBadge(t.priority)}`}>
-                      {t.priority}
-                    </span>
-                  </td>
-                  <td className="p-3 text-slate-300 font-sans">{t.assignee}</td>
-                  <td className="p-3 text-slate-400">{t.project}</td>
-                  <td className="p-3 text-slate-400">{t.dueDate}</td>
                 </tr>
-              ))}
+              ) : (
+                filteredTasks.map((t: any) => {
+                  const taskKey = t.project?.key
+                    ? `${t.project.key}-${t.pubId.slice(-4).toUpperCase()}`
+                    : t.pubId.slice(0, 8);
+
+                  return (
+                    <tr
+                      key={t.pubId}
+                      onClick={() => setSelectedTask(t)}
+                      className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                    >
+                      <td className="p-3.5 text-indigo-400 font-bold">{taskKey}</td>
+                      <td className="p-3.5 font-semibold text-slate-100 font-sans">{t.title}</td>
+                      <td className="p-3.5">
+                        <span className="px-2 py-0.5 rounded bg-slate-950 text-slate-300 text-[10px] border border-slate-800">
+                          {t.status}
+                        </span>
+                      </td>
+                      <td className="p-3.5">
+                        <span className={`px-1.5 py-0.5 rounded border text-[9px] ${getPriorityBadge(t.priority)}`}>
+                          {t.priority}
+                        </span>
+                      </td>
+                      <td className="p-3.5 font-sans">
+                        {t.assignees && t.assignees.length > 0 ? (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {t.assignees.map((a: any, idx: number) => {
+                              const u = a.user;
+                              const initials = (u?.fullName || u?.email || 'U').slice(0, 2).toUpperCase();
+                              return (
+                                <span
+                                  key={u?.pubId || a.pubId || idx}
+                                  title={u?.fullName || u?.email}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-950 border border-slate-800 text-[10px] text-slate-300 font-mono"
+                                >
+                                  <span className="w-3.5 h-3.5 rounded-full bg-indigo-600 text-white text-[8px] font-bold flex items-center justify-center">
+                                    {initials}
+                                  </span>
+                                  <span className="truncate max-w-[70px]">{u?.fullName || u?.email?.split('@')[0]}</span>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <span className="text-slate-500 text-[10px] italic">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="p-3.5 text-slate-300 font-sans">{t.project?.name || 'Project'}</td>
+                      <td className="p-3.5 text-slate-400 font-sans">
+                        {t.creator?.fullName || t.creator?.email || 'N/A'}
+                      </td>
+                      <td className="p-3.5 text-slate-400">
+                        {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="p-3.5 text-right">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTask(t);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-indigo-300 rounded hover:bg-slate-800 cursor-pointer"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* Task Detail Side Panel Drawer */}
+      {/* EDIT / DETAILS DRAWER */}
       {selectedTask && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/70 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-slate-900 border-l border-slate-800 h-full p-6 overflow-y-auto space-y-5 font-sans text-slate-100 shadow-2xl animate-in slide-in-from-right duration-200">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-800">
-              <span className="text-xs font-mono font-bold text-indigo-400">{selectedTask.id}</span>
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-slate-900 border-l border-slate-800 h-full p-6 overflow-y-auto space-y-5 font-sans text-slate-100 shadow-2xl flex flex-col justify-between">
+            <div className="space-y-4">
+              {/* Header */}
+              <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono font-bold text-indigo-400">
+                    {selectedTask.project?.key
+                      ? `${selectedTask.project.key}-${selectedTask.pubId.slice(-4).toUpperCase()}`
+                      : selectedTask.pubId.slice(0, 8)}
+                  </span>
+                  <span className="text-slate-600">&bull;</span>
+                  <span className="text-xs text-slate-400 font-mono">
+                    Project: {selectedTask.project?.name || activeProject?.name}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTask(null)}
+                  className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-200 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Task Edit Form */}
+              <div className="space-y-3.5">
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Title *</label>
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Description</label>
+                  <textarea
+                    rows={4}
+                    value={editDesc}
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-sans leading-relaxed"
+                  />
+                </div>
+
+                {/* Status Column Selector */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">
+                    Status Column (Move position)
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                    {COLUMNS.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setEditStatus(c.id)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-mono transition-all border cursor-pointer ${
+                          editStatus === c.id
+                            ? 'bg-indigo-600 text-white font-bold border-indigo-500 shadow-sm'
+                            : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200'
+                        }`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Priority & Due Date */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">Priority</label>
+                    <select
+                      value={editPriority}
+                      onChange={(e) => setEditPriority(e.target.value as TaskPriorityType)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono cursor-pointer"
+                    >
+                      <option value="LOW">LOW</option>
+                      <option value="MEDIUM">MEDIUM</option>
+                      <option value="HIGH">HIGH</option>
+                      <option value="URGENT">URGENT</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">Due Date</label>
+                    <input
+                      type="date"
+                      value={editDueDate}
+                      onChange={(e) => setEditDueDate(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono cursor-pointer"
+                    >
+                    </input>
+                  </div>
+                </div>
+
+                {/* Task Assignees Section */}
+                {(() => {
+                  const currentAssigneePubIds = (selectedTask.assignees || [])
+                    .map((a: any) => a.user?.pubId)
+                    .filter(Boolean);
+                  const availableMembersToAssign = members.filter(
+                    (m: any) => m.user?.pubId && !currentAssigneePubIds.includes(m.user.pubId)
+                  );
+
+                  return (
+                    <div className="space-y-2 pt-2 border-t border-slate-800">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-medium text-slate-300 flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>Assigned Members</span>
+                        </label>
+                        <span className="text-[10px] font-mono text-slate-500">
+                          {(selectedTask.assignees || []).length} assigned
+                        </span>
+                      </div>
+
+                      {/* Current Assignees List */}
+                      <div className="space-y-1.5">
+                        {(selectedTask.assignees || []).length === 0 ? (
+                          <div className="p-2.5 bg-slate-950/60 rounded-lg border border-slate-800 text-[11px] text-slate-500 italic flex items-center gap-2">
+                            <UserPlus className="w-3.5 h-3.5 text-slate-600" />
+                            <span>No members assigned yet. Assign a team member below.</span>
+                          </div>
+                        ) : (
+                          (selectedTask.assignees || []).map((a: any, idx: number) => {
+                            const u = a.user;
+                            const initials = (u?.fullName || u?.email || 'U').slice(0, 2).toUpperCase();
+                            return (
+                              <div
+                                key={u?.pubId || a.pubId || idx}
+                                className="flex items-center justify-between p-2 bg-slate-950 border border-slate-800 rounded-lg text-xs"
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="w-6 h-6 rounded-full bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-bold text-[10px] flex items-center justify-center flex-shrink-0">
+                                    {initials}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-semibold text-slate-200 text-xs truncate">
+                                      {u?.fullName || u?.email?.split('@')[0]}
+                                    </p>
+                                    <p className="text-[10px] text-slate-500 font-mono truncate">{u?.email}</p>
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  title="Remove Assignee"
+                                  disabled={unassignTaskMutation.isPending}
+                                  onClick={() => {
+                                    if (u?.pubId) {
+                                      unassignTaskMutation.mutate({ taskPubId: selectedTask.pubId, userPubId: u.pubId });
+                                    }
+                                  }}
+                                  className="p-1 hover:bg-rose-950 hover:text-rose-400 text-slate-500 rounded cursor-pointer transition-colors"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {/* Assign Member Dropdown */}
+                      {availableMembersToAssign.length > 0 && (
+                        <div className="flex items-center gap-2 pt-1">
+                          <select
+                            value={assignSelectPubId}
+                            onChange={(e) => setAssignSelectPubId(e.target.value)}
+                            className="flex-1 px-2.5 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-sans cursor-pointer"
+                          >
+                            <option value="">Select member to assign...</option>
+                            {availableMembersToAssign.map((m: any) => (
+                              <option key={m.user?.pubId} value={m.user?.pubId}>
+                                {m.user?.fullName || m.user?.email} ({m.role})
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            disabled={!assignSelectPubId || assignTaskMutation.isPending}
+                            onClick={() => {
+                              if (assignSelectPubId) {
+                                assignTaskMutation.mutate({ taskPubId: selectedTask.pubId, userPubId: assignSelectPubId });
+                              }
+                            }}
+                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1 shadow-sm whitespace-nowrap"
+                          >
+                            {assignTaskMutation.isPending ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <UserPlus className="w-3 h-3" />
+                            )}
+                            <span>Assign</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Metadata */}
+                <div className="p-3 bg-slate-950/60 rounded-lg border border-slate-800 text-[11px] font-mono text-slate-400 space-y-1">
+                  <p>Created: {new Date(selectedTask.createdAt).toLocaleString()}</p>
+                  <p>Creator: {selectedTask.creator?.fullName || selectedTask.creator?.email || 'N/A'}</p>
+                  <p>PubId: {selectedTask.pubId}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions: Save & Delete */}
+            <div className="pt-4 border-t border-slate-800 flex items-center justify-between gap-3">
               <button
-                onClick={() => setSelectedTask(null)}
-                className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-slate-200"
+                type="button"
+                onClick={() => {
+                  if (confirm(`Are you sure you want to delete task "${selectedTask.title}"?`)) {
+                    deleteTaskMutation.mutate(selectedTask.pubId);
+                  }
+                }}
+                disabled={deleteTaskMutation.isPending}
+                className="flex items-center gap-1.5 px-3 py-2 bg-rose-950/60 hover:bg-rose-900 border border-rose-800/60 text-rose-300 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
               >
-                <X className="w-5 h-5" />
+                {deleteTaskMutation.isPending ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>Delete Task</span>
               </button>
-            </div>
 
-            <div>
-              <h3 className="text-lg font-bold text-slate-100 leading-snug mb-2">{selectedTask.title}</h3>
-              <p className="text-xs text-slate-300 bg-slate-950 p-3 rounded-lg border border-slate-800 leading-relaxed font-sans">
-                {selectedTask.description}
-              </p>
-            </div>
-
-            {/* Quick Status Moves */}
-            <div>
-              <label className="block text-[11px] font-mono text-slate-500 uppercase font-bold mb-1.5">
-                Change Status Column:
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {COLUMNS.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => moveTask(selectedTask.id, c.id)}
-                    className={`px-2.5 py-1 rounded text-xs font-mono transition-colors border ${
-                      selectedTask.status === c.id
-                        ? 'bg-indigo-600 text-white font-bold border-indigo-500'
-                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-                    }`}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* AI Summary Action Trigger */}
-            <div className="p-4 bg-indigo-950/40 border border-indigo-800/40 rounded-xl space-y-2">
-              <div className="flex items-center gap-2 text-indigo-300 font-bold text-xs">
-                <Sparkles className="w-4 h-4 text-indigo-400" />
-                <span>AI Workspace Summary</span>
-              </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Task involves backend GraphQL resolvers and state synchronization. Subtasks created and validated.
-              </p>
-            </div>
-
-            {/* Activity Log */}
-            <div className="space-y-2 pt-2 border-t border-slate-800">
-              <h4 className="text-xs font-mono font-bold text-slate-400 uppercase">Activity Log</h4>
-              <div className="space-y-2 text-xs font-mono text-slate-400">
-                <p>&bull; Status updated to {selectedTask.status}</p>
-                <p>&bull; Assigned to {selectedTask.assignee}</p>
-                <p>&bull; Created in project {selectedTask.project}</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTask(null)}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateTaskMutation.mutate()}
+                  disabled={updateTaskMutation.isPending || !editTitle.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors shadow-sm"
+                >
+                  {updateTaskMutation.isPending ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Save className="w-3.5 h-3.5" />
+                  )}
+                  <span>Save Changes</span>
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Create Task Modal */}
+      {/* CREATE TASK MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-5 text-slate-100 font-sans">
-            <h3 className="text-base font-bold text-slate-100 mb-3 flex items-center gap-2">
-              <Plus className="w-4 h-4 text-indigo-400" />
-              Create Task
-            </h3>
-            <form onSubmit={handleCreateTask} className="space-y-3.5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 text-slate-100 font-sans space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <Plus className="w-4 h-4 text-indigo-400" />
+                <span>Create New Task</span>
+              </h3>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-slate-400 hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                createTaskMutation.mutate();
+              }}
+              className="space-y-3.5 text-xs font-sans"
+            >
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Task Title *</label>
+                <label className="block font-medium text-slate-300 mb-1">
+                  Project <span className="text-indigo-400">*</span>
+                </label>
+                <select
+                  value={selectedProjectPubId}
+                  onChange={(e) => setSelectedProjectPubId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer font-mono"
+                >
+                  {projects.map((p: any) => (
+                    <option key={p.pubId} value={p.pubId}>
+                      [{p.key}] {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">
+                  Task Title <span className="text-indigo-400">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="Implement GraphQL endpoint for task deletion"
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                  placeholder="e.g. Implement authentication middleware"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Description</label>
+                <label className="block font-medium text-slate-300 mb-1">Description</label>
                 <textarea
                   rows={3}
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
-                  placeholder="Task details and acceptance criteria..."
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500"
+                  placeholder="Acceptance criteria and implementation details..."
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Priority</label>
-                <select
-                  value={newPriority}
-                  onChange={(e) => setNewPriority(e.target.value as any)}
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
-                >
-                  <option value="LOW">LOW</option>
-                  <option value="MEDIUM">MEDIUM</option>
-                  <option value="HIGH">HIGH</option>
-                  <option value="URGENT">URGENT</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-slate-300 mb-1">Initial Column</label>
+                  <select
+                    value={createColumnTarget}
+                    onChange={(e) => setCreateColumnTarget(e.target.value as TaskStatusType)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono cursor-pointer"
+                  >
+                    {COLUMNS.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-medium text-slate-300 mb-1">Priority</label>
+                  <select
+                    value={newPriority}
+                    onChange={(e) => setNewPriority(e.target.value as TaskPriorityType)}
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono cursor-pointer"
+                  >
+                    <option value="LOW">LOW</option>
+                    <option value="MEDIUM">MEDIUM</option>
+                    <option value="HIGH">HIGH</option>
+                    <option value="URGENT">URGENT</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">Due Date</label>
+                <input
+                  type="date"
+                  value={newDueDate}
+                  onChange={(e) => setNewDueDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono cursor-pointer"
+                />
+              </div>
+
+              {/* Assignees Selector */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-medium text-slate-300 flex items-center gap-1">
+                    <Users className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Assign Team Members (Optional)</span>
+                  </label>
+                  {user?.pubId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedAssigneePubIds.includes(user.pubId)) {
+                          setSelectedAssigneePubIds((prev) => prev.filter((id) => id !== user.pubId));
+                        } else {
+                          setSelectedAssigneePubIds((prev) => [...prev, user.pubId]);
+                        }
+                      }}
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded cursor-pointer transition-colors border ${
+                        selectedAssigneePubIds.includes(user.pubId)
+                          ? 'bg-indigo-600/30 text-indigo-300 border-indigo-500/50'
+                          : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200'
+                      }`}
+                    >
+                      {selectedAssigneePubIds.includes(user.pubId) ? 'Assigned to You ✓' : '+ Assign to Me'}
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-1 max-h-36 overflow-y-auto p-2 bg-slate-950 border border-slate-800 rounded-lg">
+                  {members.length === 0 ? (
+                    <p className="text-[11px] text-slate-500 italic">No organization members found.</p>
+                  ) : (
+                    members.map((m: any) => {
+                      const u = m.user;
+                      if (!u) return null;
+                      const isSelected = selectedAssigneePubIds.includes(u.pubId);
+                      const initials = (u.fullName || u.email || 'U').slice(0, 2).toUpperCase();
+
+                      return (
+                        <div
+                          key={u.pubId}
+                          onClick={() => {
+                            setSelectedAssigneePubIds((prev) =>
+                              isSelected ? prev.filter((id) => id !== u.pubId) : [...prev, u.pubId]
+                            );
+                          }}
+                          className={`flex items-center justify-between p-1.5 rounded-md cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-indigo-950/80 border border-indigo-500/50 text-indigo-200'
+                              : 'hover:bg-slate-900 border border-transparent text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div
+                              className={`w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center flex-shrink-0 ${
+                                isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'
+                              }`}
+                            >
+                              {initials}
+                            </div>
+                            <span className="text-xs truncate">{u.fullName || u.email}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-mono text-slate-500">{m.role}</span>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500 cursor-pointer pointer-events-none"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2.5 pt-3 border-t border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg"
+                  className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg"
+                  disabled={createTaskMutation.isPending || !newTitle.trim()}
+                  className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
-                  Create Task
+                  {createTaskMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Create Task</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* QUICK CREATE PROJECT MODAL */}
+      {showCreateProjectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 text-slate-100 font-sans space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <FolderKanban className="w-4 h-4 text-indigo-400" />
+                <span>Create Project</span>
+              </h3>
+              <button
+                onClick={() => setShowCreateProjectModal(false)}
+                className="text-slate-400 hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                createProjectMutation.mutate();
+              }}
+              className="space-y-3.5 text-xs font-sans"
+            >
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">
+                  Project Name <span className="text-indigo-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newProjectName}
+                  onChange={(e) => {
+                    setNewProjectName(e.target.value);
+                    if (!newProjectKey) {
+                      setNewProjectKey(e.target.value.replace(/[^a-zA-Z]/g, '').slice(0, 4).toUpperCase());
+                    }
+                  }}
+                  placeholder="e.g. Core API Service"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">
+                  Project Key (Prefix for tasks) <span className="text-indigo-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={10}
+                  value={newProjectKey}
+                  onChange={(e) => setNewProjectKey(e.target.value.toUpperCase())}
+                  placeholder="e.g. CORE"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 font-mono uppercase focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">Description</label>
+                <textarea
+                  rows={2}
+                  value={newProjectDesc}
+                  onChange={(e) => setNewProjectDesc(e.target.value)}
+                  placeholder="Project goals and deliverables..."
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateProjectModal(false)}
+                  className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createProjectMutation.isPending || !newProjectName.trim() || !newProjectKey.trim()}
+                  className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg cursor-pointer transition-colors flex items-center justify-center gap-2 shadow-sm"
+                >
+                  {createProjectMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Create Project</span>
                 </button>
               </div>
             </form>

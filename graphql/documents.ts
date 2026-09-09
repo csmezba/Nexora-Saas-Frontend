@@ -624,6 +624,10 @@ export const CREATE_PROJECT_MUTATION = `
       memberCount
       organizationPubId
       teamPubId
+      team {
+        pubId
+        name
+      }
       createdAt
       updatedAt
     }
@@ -643,6 +647,10 @@ export const UPDATE_PROJECT_MUTATION = `
       memberCount
       organizationPubId
       teamPubId
+      team {
+        pubId
+        name
+      }
       createdAt
       updatedAt
     }
@@ -657,4 +665,186 @@ export const DELETE_PROJECT_MUTATION = `
     }
   }
 `;
+
+// --- TASK QUERIES & MUTATIONS ---
+
+export const PROJECT_TASKS_QUERY = `
+  query ProjectTasks($projectPubId: String!, $priority: TaskPriority, $status: TaskStatus, $sprintPubId: String) {
+    projectTasks(projectPubId: $projectPubId, priority: $priority, status: $status, sprintPubId: $sprintPubId) {
+      pubId
+      title
+      description
+      status
+      priority
+      position
+      dueDate
+      projectPubId
+      project {
+        pubId
+        name
+        key
+      }
+      creator {
+        pubId
+        fullName
+        email
+      }
+      assignees {
+        user {
+          pubId
+          fullName
+          email
+        }
+      }
+      labels {
+        pubId
+        name
+        color
+      }
+      comments {
+        pubId
+        content
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const TASK_QUERY = `
+  query Task($pubId: String!) {
+    task(pubId: $pubId) {
+      pubId
+      title
+      description
+      status
+      priority
+      position
+      dueDate
+      projectPubId
+      project {
+        pubId
+        name
+        key
+      }
+      creator {
+        pubId
+        fullName
+        email
+      }
+      assignees {
+        user {
+          pubId
+          fullName
+          email
+        }
+      }
+      labels {
+        pubId
+        name
+        color
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const CREATE_TASK_MUTATION = `
+  mutation CreateTask($input: CreateTaskInput!) {
+    createTask(input: $input) {
+      pubId
+      title
+      description
+      status
+      priority
+      position
+      dueDate
+      projectPubId
+      project {
+        pubId
+        name
+        key
+      }
+      creator {
+        pubId
+        fullName
+        email
+      }
+      assignees {
+        pubId
+        user {
+          pubId
+          fullName
+          email
+        }
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_TASK_MUTATION = `
+  mutation UpdateTask($pubId: String!, $input: UpdateTaskInput!) {
+    updateTask(pubId: $pubId, input: $input) {
+      pubId
+      title
+      description
+      status
+      priority
+      position
+      dueDate
+      assignees {
+        pubId
+        user {
+          pubId
+          fullName
+          email
+        }
+      }
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_TASK_POSITION_MUTATION = `
+  mutation UpdateTaskPosition($input: UpdateTaskPositionInput!) {
+    updateTaskPosition(input: $input) {
+      pubId
+      title
+      status
+      position
+      updatedAt
+    }
+  }
+`;
+
+export const DELETE_TASK_MUTATION = `
+  mutation DeleteTask($pubId: String!) {
+    deleteTask(pubId: $pubId) {
+      success
+      message
+    }
+  }
+`;
+
+export const ASSIGN_TASK_MUTATION = `
+  mutation AssignTask($input: AssignTaskInput!) {
+    assignTask(input: $input) {
+      success
+      message
+    }
+  }
+`;
+
+export const UNASSIGN_TASK_MUTATION = `
+  mutation UnassignTask($input: UnassignTaskInput!) {
+    unassignTask(input: $input) {
+      success
+      message
+    }
+  }
+`;
+
 
