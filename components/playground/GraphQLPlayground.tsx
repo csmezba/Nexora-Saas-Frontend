@@ -75,6 +75,87 @@ const SNIPPETS = [
       2
     ),
   },
+  {
+    label: 'Query customers()',
+    query: `query Customers($organizationPubId: String!) {
+  customers(organizationPubId: $organizationPubId) {
+    pubId
+    name
+    email
+    company
+    phone
+    ticketCount
+  }
+}`,
+    variables: JSON.stringify({ organizationPubId: 'REPLACE_ORG_PUB_ID' }, null, 2),
+  },
+  {
+    label: 'Query tickets()',
+    query: `query Tickets($organizationPubId: String!) {
+  tickets(organizationPubId: $organizationPubId) {
+    pubId
+    title
+    status
+    priority
+    customer {
+      name
+      company
+    }
+    assignedTo {
+      fullName
+    }
+  }
+}`,
+    variables: JSON.stringify({ organizationPubId: 'REPLACE_ORG_PUB_ID' }, null, 2),
+  },
+  {
+    label: 'Mutation createTicket()',
+    query: `mutation CreateTicket($input: CreateTicketInput!) {
+  createTicket(input: $input) {
+    pubId
+    title
+    status
+    priority
+    customerPubId
+  }
+}`,
+    variables: JSON.stringify(
+      {
+        input: {
+          customerPubId: 'REPLACE_CUSTOMER_PUB_ID',
+          title: 'Sample support issue',
+          description: 'Detailed description of the issue',
+          priority: 'HIGH',
+          status: 'OPEN',
+        },
+      },
+      null,
+      2
+    ),
+  },
+  {
+    label: 'Mutation sendMessage()',
+    query: `mutation SendMessage($input: SendMessageInput!) {
+  sendMessage(input: $input) {
+    pubId
+    content
+    type
+    conversationPubId
+    createdAt
+  }
+}`,
+    variables: JSON.stringify(
+      {
+        input: {
+          conversationPubId: 'REPLACE_CONV_PUB_ID',
+          content: 'Hello, how can I assist you today?',
+          type: 'TEXT',
+        },
+      },
+      null,
+      2
+    ),
+  },
 ];
 
 export default function GraphQLPlayground() {

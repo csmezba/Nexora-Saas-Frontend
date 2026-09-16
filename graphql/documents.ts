@@ -1036,5 +1036,435 @@ export const REMOVE_TASK_FROM_SPRINT_MUTATION = `
   }
 `;
 
+// --- CUSTOMER QUERIES & MUTATIONS ---
 
+export const CUSTOMERS_QUERY = `
+  query Customers($organizationPubId: String!, $filter: CustomerFilterInput) {
+    customers(organizationPubId: $organizationPubId, filter: $filter) {
+      pubId
+      id
+      name
+      email
+      company
+      phone
+      ticketCount
+      organizationPubId
+      createdAt
+      updatedAt
+    }
+  }
+`;
 
+export const CUSTOMER_QUERY = `
+  query Customer($pubId: String!) {
+    customer(pubId: $pubId) {
+      pubId
+      id
+      name
+      email
+      company
+      phone
+      ticketCount
+      organizationPubId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const CREATE_CUSTOMER_MUTATION = `
+  mutation CreateCustomer($input: CreateCustomerInput!) {
+    createCustomer(input: $input) {
+      pubId
+      id
+      name
+      email
+      company
+      phone
+      ticketCount
+      organizationPubId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_CUSTOMER_MUTATION = `
+  mutation UpdateCustomer($pubId: String!, $input: UpdateCustomerInput!) {
+    updateCustomer(pubId: $pubId, input: $input) {
+      pubId
+      id
+      name
+      email
+      company
+      phone
+      ticketCount
+      organizationPubId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const DELETE_CUSTOMER_MUTATION = `
+  mutation DeleteCustomer($pubId: String!) {
+    deleteCustomer(pubId: $pubId) {
+      success
+      message
+    }
+  }
+`;
+
+// --- TICKET QUERIES & MUTATIONS ---
+
+export const TICKETS_QUERY = `
+  query Tickets($organizationPubId: String!, $filter: TicketFilterInput) {
+    tickets(organizationPubId: $organizationPubId, filter: $filter) {
+      pubId
+      id
+      title
+      description
+      status
+      priority
+      commentsCount
+      customerPubId
+      customer {
+        pubId
+        id
+        name
+        email
+        company
+        phone
+      }
+      assignedTo {
+        pubId
+        email
+        firstName
+        lastName
+        fullName
+      }
+      resolvedAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const TICKET_QUERY = `
+  query Ticket($pubId: String!) {
+    ticket(pubId: $pubId) {
+      pubId
+      id
+      title
+      description
+      status
+      priority
+      commentsCount
+      customerPubId
+      customer {
+        pubId
+        id
+        name
+        email
+        company
+        phone
+      }
+      assignedTo {
+        pubId
+        email
+        firstName
+        lastName
+        fullName
+      }
+      comments {
+        pubId
+        id
+        ticketPubId
+        content
+        author {
+          pubId
+          email
+          firstName
+          lastName
+          fullName
+        }
+        createdAt
+        updatedAt
+      }
+      resolvedAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const CREATE_TICKET_MUTATION = `
+  mutation CreateTicket($input: CreateTicketInput!) {
+    createTicket(input: $input) {
+      pubId
+      id
+      title
+      description
+      status
+      priority
+      customerPubId
+      customer {
+        pubId
+        name
+        email
+        company
+      }
+      assignedTo {
+        pubId
+        email
+        fullName
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_TICKET_MUTATION = `
+  mutation UpdateTicket($pubId: String!, $input: UpdateTicketInput!) {
+    updateTicket(pubId: $pubId, input: $input) {
+      pubId
+      id
+      title
+      description
+      status
+      priority
+      customerPubId
+      assignedTo {
+        pubId
+        email
+        fullName
+      }
+      resolvedAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const ASSIGN_TICKET_MUTATION = `
+  mutation AssignTicket($input: AssignTicketInput!) {
+    assignTicket(input: $input) {
+      pubId
+      id
+      title
+      status
+      priority
+      assignedTo {
+        pubId
+        email
+        fullName
+      }
+      updatedAt
+    }
+  }
+`;
+
+export const DELETE_TICKET_MUTATION = `
+  mutation DeleteTicket($pubId: String!) {
+    deleteTicket(pubId: $pubId) {
+      success
+      message
+    }
+  }
+`;
+
+// --- TICKET COMMENT QUERIES & MUTATIONS ---
+
+export const TICKET_COMMENTS_QUERY = `
+  query TicketComments($ticketPubId: String!) {
+    ticketComments(ticketPubId: $ticketPubId) {
+      pubId
+      id
+      ticketPubId
+      content
+      author {
+        pubId
+        email
+        firstName
+        lastName
+        fullName
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const CREATE_TICKET_COMMENT_MUTATION = `
+  mutation CreateTicketComment($input: CreateTicketCommentInput!) {
+    createTicketComment(input: $input) {
+      pubId
+      id
+      ticketPubId
+      content
+      author {
+        pubId
+        email
+        firstName
+        lastName
+        fullName
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_TICKET_COMMENT_MUTATION = `
+  mutation UpdateTicketComment($commentPubId: String!, $input: UpdateTicketCommentInput!) {
+    updateTicketComment(commentPubId: $commentPubId, input: $input) {
+      pubId
+      id
+      ticketPubId
+      content
+      updatedAt
+    }
+  }
+`;
+
+export const DELETE_TICKET_COMMENT_MUTATION = `
+  mutation DeleteTicketComment($commentPubId: String!) {
+    deleteTicketComment(commentPubId: $commentPubId) {
+      success
+      message
+    }
+  }
+`;
+
+// --- CONVERSATION & MESSAGE QUERIES & MUTATIONS ---
+
+export const CUSTOMER_CONVERSATIONS_QUERY = `
+  query CustomerConversations($customerPubId: String!) {
+    customerConversations(customerPubId: $customerPubId) {
+      pubId
+      id
+      title
+      customerPubId
+      customer {
+        pubId
+        id
+        name
+        email
+        company
+        phone
+      }
+      participants {
+        pubId
+        email
+        firstName
+        lastName
+        fullName
+      }
+      messages {
+        pubId
+        id
+        conversationPubId
+        content
+        type
+        sender {
+          pubId
+          email
+          firstName
+          lastName
+          fullName
+        }
+        createdAt
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const CONVERSATION_QUERY = `
+  query Conversation($pubId: String!) {
+    conversation(pubId: $pubId) {
+      pubId
+      id
+      title
+      customerPubId
+      customer {
+        pubId
+        id
+        name
+        email
+        company
+        phone
+      }
+      participants {
+        pubId
+        email
+        firstName
+        lastName
+        fullName
+      }
+      messages {
+        pubId
+        id
+        conversationPubId
+        content
+        type
+        sender {
+          pubId
+          email
+          firstName
+          lastName
+          fullName
+        }
+        createdAt
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const CREATE_CONVERSATION_MUTATION = `
+  mutation CreateConversation($input: CreateConversationInput!) {
+    createConversation(input: $input) {
+      pubId
+      id
+      title
+      customerPubId
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const SEND_MESSAGE_MUTATION = `
+  mutation SendMessage($input: SendMessageInput!) {
+    sendMessage(input: $input) {
+      pubId
+      id
+      conversationPubId
+      content
+      type
+      sender {
+        pubId
+        email
+        firstName
+        lastName
+        fullName
+      }
+      createdAt
+    }
+  }
+`;
+
+export const SEND_PUBLIC_INQUIRY_MUTATION = `
+  mutation SendPublicInquiry($input: PublicInquiryInput!) {
+    sendPublicInquiry(input: $input) {
+      success
+      customerPubId
+      conversationPubId
+      messagePubId
+    }
+  }
+`;

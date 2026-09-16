@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import SupportChatWidget from '@/components/support/SupportChatWidget';
 import {
   Layers,
   Sparkles,
@@ -224,6 +225,9 @@ export default function MarketingLandingPage() {
       <footer className="border-t border-slate-800 py-8 px-4 sm:px-6 text-xs text-slate-500 font-mono text-center space-y-2">
         <p>&copy; 2026 Nexora Multi-Tenant SaaS Platform &bull; Connected to NestJS GraphQL Backend</p>
       </footer>
+
+      {/* Immediate Bottom-Right Support Chat Box */}
+      <SupportChatWidget />
     </div>
   );
 }

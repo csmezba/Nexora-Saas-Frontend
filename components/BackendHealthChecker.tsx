@@ -3,14 +3,20 @@
 import React, { useEffect, useState } from 'react';
 import { checkBackendConnection, getBackendUrl } from '@/lib/graphql-client';
 import { useAuthStore } from '@/store/useAuthStore';
-import { Activity, Server, RefreshCw, CheckCircle2, AlertTriangle, Settings2 } from 'lucide-react';
+import { Server, RefreshCw, Settings2 } from 'lucide-react';
 
 export default function BackendHealthChecker() {
+  const [mounted, setMounted] = useState(false);
   const [status, setStatus] = useState<'checking' | 'connected' | 'error'>('checking');
-  const [message, setMessage] = useState<string>('Checking backend connection...');
+  const [, setMessage] = useState<string>('Checking backend connection...');
   const { backendUrl, setBackendUrl } = useAuthStore();
-  const [inputUrl, setInputUrl] = useState<string>(backendUrl);
+  const [inputUrl, setInputUrl] = useState<string>('http://localhost:8000/graphql');
   const [showSettings, setShowSettings] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setInputUrl(backendUrl);
+  }, [backendUrl]);
 
   const runCheck = async () => {
     setStatus('checking');
@@ -18,7 +24,7 @@ export default function BackendHealthChecker() {
     const result = await checkBackendConnection();
     if (result.ok) {
       setStatus('connected');
-      setMessage(`Connected to NestJS GraphQL Backend`);
+      setMessage('Connected to NestJS GraphQL Backend');
     } else {
       setStatus('error');
       setMessage(`Disconnected: ${result.message}`);
@@ -26,14 +32,39 @@ export default function BackendHealthChecker() {
   };
 
   useEffect(() => {
-    runCheck();
-  }, [backendUrl]);
+    if (mounted) {
+      runCheck();
+    }
+  }, [mounted, backendUrl]);
 
   const handleUpdateUrl = (e: React.FormEvent) => {
     e.preventDefault();
     setBackendUrl(inputUrl);
     setShowSettings(false);
   };
+
+  // Prevent SSR hydration mismatch by rendering a consistent static placeholder during initial SSR
+  if (!mounted) {
+    return (
+      <div className="bg-slate-900 text-slate-100 border-b border-slate-800 text-xs py-2 px-4 h-9">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-pulse relative inline-flex rounded-full h-2 w-2 bg-blue-400"></span>
+              </span>
+              <span className="font-semibold tracking-wide uppercase text-[10px] text-slate-300">
+                Connecting...
+              </span>
+            </div>
+            <span className="text-slate-500 hidden sm:inline-block font-mono text-[11px]">
+              http://localhost:8000/graphql
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-slate-900 text-slate-100 border-b border-slate-800 text-xs py-2 px-4">

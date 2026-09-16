@@ -9,6 +9,8 @@ import {
   ORGANIZATION_TEAMS_QUERY,
   ORGANIZATION_MEMBERS_QUERY,
   ORGANIZATION_PROJECTS_QUERY,
+  CUSTOMERS_QUERY,
+  TICKETS_QUERY,
 } from '@/graphql/documents';
 import { useAuthStore } from '@/store/useAuthStore';
 import {
@@ -24,6 +26,8 @@ import {
   Clock,
   Layers,
   Plus,
+  Ticket,
+  MessageSquare,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -94,6 +98,34 @@ export default function DashboardPage() {
     enabled: !!effectiveOrgPubId && !!accessToken,
   });
 
+  // 4. Real Customers Query
+  const { data: customers = [] } = useQuery({
+    queryKey: ['customers', effectiveOrgPubId],
+    queryFn: async () => {
+      if (!effectiveOrgPubId) return [];
+      const res = await graphqlRequest<{ customers: any[] }>(CUSTOMERS_QUERY, {
+        organizationPubId: effectiveOrgPubId,
+      });
+      return res.customers || [];
+    },
+    enabled: !!effectiveOrgPubId && !!accessToken,
+  });
+
+  // 5. Real Tickets Query
+  const { data: tickets = [] } = useQuery({
+    queryKey: ['tickets', effectiveOrgPubId],
+    queryFn: async () => {
+      if (!effectiveOrgPubId) return [];
+      const res = await graphqlRequest<{ tickets: any[] }>(TICKETS_QUERY, {
+        organizationPubId: effectiveOrgPubId,
+      });
+      return res.tickets || [];
+    },
+    enabled: !!effectiveOrgPubId && !!accessToken,
+  });
+
+  const openTickets = tickets.filter((t: any) => t.status === 'OPEN' || t.status === 'IN_PROGRESS');
+
   const metrics = [
     {
       title: 'Active Projects',
@@ -121,6 +153,24 @@ export default function DashboardPage() {
       color: 'text-amber-400',
       bg: 'bg-amber-950/40 border-amber-800/40',
       link: '/dashboard/teams',
+    },
+    {
+      title: 'CRM Customers',
+      value: customers.length.toString(),
+      change: `${customers.length} client accounts`,
+      icon: Building2,
+      color: 'text-cyan-400',
+      bg: 'bg-cyan-950/40 border-cyan-800/40',
+      link: '/dashboard/customers',
+    },
+    {
+      title: 'Support Tickets',
+      value: openTickets.length.toString(),
+      change: `${openTickets.length} pending resolution`,
+      icon: Ticket,
+      color: 'text-rose-400',
+      bg: 'bg-rose-950/40 border-rose-800/40',
+      link: '/dashboard/tickets',
     },
     {
       title: 'Your Role',
@@ -182,7 +232,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Real Metrics Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {metrics.map((m) => {
           const Icon = m.icon;
           return (
